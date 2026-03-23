@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Merge Cafe Guide</title>
+  <style>
+    :root {
+      --ink: #654d4a;
+      --ink-soft: #8a6b67;
+      --card: rgba(255, 255, 255, 0.86);
+      --shadow: 0 18px 36px rgba(150, 111, 103, 0.14);
+      font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0) 38%),
+        linear-gradient(145deg, #ffe7dd 0%, #fff5ea 45%, #e9fbf4 100%);
+    }
+
+    .page {
+      width: min(920px, calc(100vw - 24px));
+      margin: 0 auto;
+      padding: 22px 0 36px;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 5vw, 2.4rem);
+      line-height: 0.95;
+    }
+
+    .brand p {
+      margin: 6px 0 0;
+      color: var(--ink-soft);
+    }
+
+    .nav-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 52px;
+      padding: 0 18px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.82);
+      color: var(--ink);
+      font-size: 0.92rem;
+      font-weight: 800;
+      text-decoration: none;
+      box-shadow: var(--shadow);
+      white-space: nowrap;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 28px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+
+    .section-title {
+      margin: 0 0 14px;
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+    }
+
+    .step-list,
+    .chain-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .step,
+    .chain-item {
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--ink-soft);
+      line-height: 1.45;
+    }
+
+    .chain-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .level-token {
+      min-width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 900;
+      box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.18);
+    }
+
+    .level-meta strong,
+    .level-meta span {
+      display: block;
+    }
+
+    .level-meta span {
+      margin-top: 3px;
+      font-size: 0.8rem;
+      color: var(--ink-soft);
+    }
+
+    @media (max-width: 760px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .top-bar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="top-bar">
+      <div class="brand">
+        <h1>Merge Cafe Guide</h1>
+        <p>Core rules and the full drink upgrade chain.</p>
+      </div>
+      <a class="nav-button" href="index.html">Back To Game</a>
+    </header>
+
+    <main class="grid">
+      <section class="card">
+        <h2 class="section-title">How To Play</h2>
+        <div class="step-list">
+          <div class="step">Tap the center brewer to generate a random Lv1, Lv2, or Lv3 drink on an empty board tile.</div>
+          <div class="step">Drag a drink onto an empty tile to move it around the 5x5 board.</div>
+          <div class="step">Merge two identical drinks of the same level to upgrade them into the next drink tier.</div>
+          <div class="step">Tap a customer slot to select who you want to serve next.</div>
+          <div class="step">Drag a requested drink directly onto the selected customer card to fill that order line.</div>
+          <div class="step">Customers arrive at random times and leave if their patience timer expires, so keep the queue moving.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Drink Chain</h2>
+        <div class="chain-list">
+          <div class="chain-item">
+            <div class="level-token" style="background:#c9896f;">Lv1</div>
+            <div class="level-meta">
+              <strong>Espresso</strong>
+              <span>Starter drink</span>
+            </div>
+          </div>
+          <div class="chain-item">
+            <div class="level-token" style="background:#8bc5b7;">Lv2</div>
+            <div class="level-meta">
+              <strong>Americano</strong>
+              <span>Merge two Lv1 Espresso</span>
+            </div>
+          </div>
+          <div class="chain-item">
+            <div class="level-token" style="background:#f4b98c;">Lv3</div>
+            <div class="level-meta">
+              <strong>Cafe Latte</strong>
+              <span>Merge two Lv2 Americano</span>
+            </div>
+          </div>
+          <div class="chain-item">
+            <div class="level-token" style="background:#f3a7bf;">Lv4</div>
+            <div class="level-meta">
+              <strong>Vanilla Latte</strong>
+              <span>Merge two Lv3 Cafe Latte</span>
+            </div>
+          </div>
+          <div class="chain-item">
+            <div class="level-token" style="background:#ad9ae8;">Lv5</div>
+            <div class="level-meta">
+              <strong>Signature Latte</strong>
+              <span>Merge two Lv4 Vanilla Latte</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

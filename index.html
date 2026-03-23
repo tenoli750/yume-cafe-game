@@ -1,0 +1,4068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Merge Cafe</title>
+  <style>
+    :root {
+      --viewport-width: 540;
+      --viewport-height: 1080;
+      --viewport-margin: 24;
+      --viewport-scale: 1;
+      --viewport-scaled-width: calc(var(--viewport-width) * 1px);
+      --viewport-scaled-height: calc(var(--viewport-height) * 1px);
+      --bg-cream: #fff7ef;
+      --bg-peach: #ffd7cd;
+      --bg-pink: #f7cfe2;
+      --bg-mint: #dff6ee;
+      --bg-latte: #f6e4cb;
+      --ink: #654d4a;
+      --ink-soft: #8a6b67;
+      --card: rgba(255, 255, 255, 0.82);
+      --card-strong: rgba(255, 255, 255, 0.96);
+      --line: rgba(167, 123, 120, 0.18);
+      --shadow: 0 20px 40px rgba(150, 111, 103, 0.16);
+      --shadow-soft: 0 12px 24px rgba(150, 111, 103, 0.12);
+      --coin: #f3b64e;
+      --success: #8ccdb1;
+      --warning: #f59f86;
+      --grid-count: 7;
+      --board-gap: 6px;
+      --board-pad: 12px;
+      font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: #000;
+      overflow: hidden;
+    }
+
+    body.dragging {
+      cursor: grabbing;
+      user-select: none;
+    }
+
+    body::before,
+    body::after {
+      display: none;
+    }
+
+    .viewport-stage {
+      width: 100vw;
+      height: 100dvh;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      padding: calc(var(--viewport-margin) * 1px / 2);
+    }
+
+    .viewport-frame {
+      position: relative;
+      width: var(--viewport-scaled-width);
+      height: var(--viewport-scaled-height);
+    }
+
+    .viewport-scaler {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: calc(var(--viewport-width) * 1px);
+      height: calc(var(--viewport-height) * 1px);
+      transform: translate(-50%, -50%) scale(var(--viewport-scale));
+      transform-origin: center center;
+    }
+
+    .start-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      align-items: stretch;
+      justify-content: stretch;
+      background:
+        linear-gradient(180deg, rgba(14, 20, 12, 0.12), rgba(13, 13, 13, 0.34)),
+        url("start-screen-bg.jpg") center top / cover no-repeat;
+    }
+
+    .start-screen.is-hidden {
+      display: none;
+    }
+
+    .start-screen::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.16)),
+        linear-gradient(180deg, rgba(255, 245, 226, 0) 48%, rgba(42, 20, 10, 0.28) 100%);
+      pointer-events: none;
+    }
+
+    .start-screen-content {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      padding: 18px 28px 56px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .start-screen-top {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .start-screen-toolbar {
+      width: 100%;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .start-logo {
+      width: min(100%, 250px);
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 12px 26px rgba(34, 22, 14, 0.28));
+    }
+
+    .start-button {
+      appearance: none;
+      -webkit-appearance: none;
+      width: min(100%, 280px);
+      border: 0;
+      border-radius: 999px;
+      padding: 15px 18px;
+      background: linear-gradient(180deg, #ffcd86, #f1a85c);
+      color: #6d442d;
+      font-size: 1rem;
+      font-weight: 900;
+      letter-spacing: 0.03em;
+      box-shadow:
+        inset 0 2px 0 rgba(255, 245, 224, 0.7),
+        0 14px 26px rgba(135, 79, 36, 0.24);
+      cursor: pointer;
+    }
+
+    .start-button:focus-visible {
+      outline: none;
+    }
+
+    .start-screen-actions {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .player-id-input {
+      width: min(100%, 280px);
+      padding: 14px 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.74);
+      background: rgba(255, 250, 244, 0.92);
+      color: var(--ink);
+      font-size: 0.96rem;
+      font-weight: 700;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.84),
+        0 12px 22px rgba(61, 36, 23, 0.16);
+    }
+
+    .player-id-input::placeholder {
+      color: rgba(101, 77, 74, 0.6);
+    }
+
+    .player-id-input:focus-visible {
+      outline: none;
+      border-color: rgba(222, 157, 110, 0.72);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.84),
+        0 0 0 3px rgba(241, 183, 129, 0.18),
+        0 12px 22px rgba(61, 36, 23, 0.16);
+    }
+
+    .leaderboard-card {
+      width: min(100%, 320px);
+      border-radius: 26px;
+      padding: 14px 16px;
+      background: rgba(255, 249, 242, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.86),
+        0 16px 28px rgba(44, 25, 16, 0.18);
+      backdrop-filter: blur(8px);
+    }
+
+    .leaderboard-title {
+      margin: 0 0 8px;
+      font-size: 0.86rem;
+      font-weight: 900;
+      color: #6c4b45;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .leaderboard-status {
+      min-height: 18px;
+      margin: 0 0 8px;
+      font-size: 0.72rem;
+      line-height: 1.35;
+      color: var(--ink-soft);
+      font-weight: 700;
+    }
+
+    .leaderboard-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .leaderboard-row {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.74);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.84);
+    }
+
+    .leaderboard-rank {
+      font-size: 0.7rem;
+      font-weight: 900;
+      color: #d08956;
+    }
+
+    .leaderboard-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .leaderboard-score {
+      font-size: 0.78rem;
+      font-weight: 900;
+      color: #6a4c46;
+    }
+
+    .header-icon-button {
+      appearance: none;
+      -webkit-appearance: none;
+      position: relative;
+      width: 54px;
+      height: 54px;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 18px;
+      background: linear-gradient(180deg, #ffd36d, #f0a741);
+      box-shadow:
+        inset 0 2px 0 rgba(255, 246, 214, 0.72),
+        0 12px 24px rgba(135, 79, 36, 0.2);
+      display: grid;
+      place-items: center;
+      color: #7a4a24;
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .header-icon-button:focus-visible {
+      outline: none;
+    }
+
+    .header-icon-button.is-muted {
+      background: linear-gradient(180deg, #ffe3a8, #f1c66d);
+      color: rgba(122, 74, 36, 0.78);
+    }
+
+    .header-icon-button.is-muted::after {
+      content: "";
+      position: absolute;
+      width: 26px;
+      height: 3px;
+      border-radius: 999px;
+      background: rgba(122, 74, 36, 0.82);
+      transform: rotate(-38deg);
+    }
+
+    .toolbar-icon {
+      width: 22px;
+      height: 22px;
+      display: block;
+      fill: currentColor;
+    }
+
+    .leaderboard-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 21;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(27, 18, 13, 0.22);
+      backdrop-filter: blur(8px);
+    }
+
+    .leaderboard-overlay.is-hidden {
+      display: none;
+    }
+
+    .leaderboard-overlay-card {
+      width: min(100%, 360px);
+      border-radius: 30px;
+      padding: 18px;
+      background: rgba(255, 249, 242, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      box-shadow:
+        0 22px 42px rgba(38, 23, 15, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.92);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .leaderboard-overlay-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .leaderboard-close {
+      appearance: none;
+      -webkit-appearance: none;
+      min-width: 68px;
+      border: 0;
+      background: transparent;
+      color: var(--ink-soft);
+      font-size: 0.74rem;
+      font-weight: 900;
+      cursor: pointer;
+      padding: 0;
+      text-align: right;
+    }
+
+    .round-end-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 22;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(27, 18, 13, 0.28);
+      backdrop-filter: blur(8px);
+    }
+
+    .round-end-overlay.is-hidden {
+      display: none;
+    }
+
+    .round-end-card {
+      width: min(100%, 360px);
+      border-radius: 30px;
+      padding: 18px;
+      background: rgba(255, 249, 242, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.78);
+      box-shadow:
+        0 22px 42px rgba(38, 23, 15, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.92);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .round-end-kicker {
+      width: 100%;
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #c78662;
+      text-align: center;
+    }
+
+    .round-end-title {
+      margin: 0;
+      width: 100%;
+      font-size: 1.2rem;
+      font-weight: 900;
+      color: var(--ink);
+      text-align: center;
+    }
+
+    .round-end-summary {
+      margin: 0;
+      width: 100%;
+      color: var(--ink-soft);
+      font-size: 0.82rem;
+      line-height: 1.45;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .round-end-actions {
+      width: 100%;
+      display: flex;
+      gap: 10px;
+    }
+
+    .round-end-card .player-id-input,
+    .round-end-card .leaderboard-card {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .round-end-button {
+      appearance: none;
+      -webkit-appearance: none;
+      flex: 1 1 0;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 14px;
+      background: linear-gradient(180deg, #ffcd86, #f1a85c);
+      color: #6d442d;
+      font-size: 0.84rem;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      box-shadow:
+        inset 0 2px 0 rgba(255, 245, 224, 0.7),
+        0 10px 18px rgba(135, 79, 36, 0.18);
+      cursor: pointer;
+    }
+
+    .round-end-button.secondary {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 238, 228, 0.94));
+      color: var(--ink);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.86),
+        0 10px 18px rgba(150, 111, 103, 0.12);
+    }
+
+    .round-end-button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .game-shell.is-hidden {
+      visibility: hidden;
+    }
+
+    .tutorial-overlay {
+      position: absolute;
+      inset: 14px 6px 0;
+      z-index: 6;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .tutorial-overlay.is-hidden {
+      display: none;
+    }
+
+    .tutorial-slot-spacer {
+      grid-column: 1 / 2;
+    }
+
+    .tutorial-card-wrap {
+      grid-column: 2 / 4;
+      min-width: 0;
+      pointer-events: auto;
+    }
+
+    .tutorial-card {
+      width: 100%;
+      min-height: 100%;
+      border-radius: 24px;
+      padding: 14px 14px 12px;
+      background: rgba(255, 250, 242, 0.94);
+      box-shadow:
+        0 16px 28px rgba(37, 24, 16, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.84);
+      border: 1px solid rgba(255, 255, 255, 0.74);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    .tutorial-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .tutorial-step {
+      color: #c78662;
+      font-size: 0.62rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .tutorial-skip {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 0;
+      background: transparent;
+      color: #8b6a61;
+      font-size: 0.68rem;
+      font-weight: 800;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .tutorial-title {
+      margin: 0 0 6px;
+      color: #654d4a;
+      font-size: 0.84rem;
+      font-weight: 900;
+      line-height: 1.18;
+    }
+
+    .tutorial-body {
+      margin: 0;
+      color: #775f58;
+      font-size: 0.72rem;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .tutorial-actions {
+      margin-top: auto;
+      padding-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .tutorial-next {
+      appearance: none;
+      -webkit-appearance: none;
+      min-width: 100px;
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: linear-gradient(180deg, #ffcd86, #f1a85c);
+      color: #6d442d;
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      box-shadow:
+        inset 0 2px 0 rgba(255, 245, 224, 0.7),
+        0 10px 18px rgba(135, 79, 36, 0.18);
+      cursor: pointer;
+    }
+
+    .app-shell {
+      position: relative;
+      width: calc(var(--viewport-width) * 1px);
+      height: calc(var(--viewport-height) * 1px);
+      margin: 0;
+      padding: 10px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 10px;
+      background:
+        linear-gradient(180deg, rgba(255, 251, 243, 0.24), rgba(255, 248, 240, 0.38)),
+        url("in-game-bg.jpg") center center / cover no-repeat;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: nowrap;
+      gap: 16px;
+      margin-bottom: 0;
+    }
+
+    .top-bar-shell {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 28px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      flex: 0 0 auto;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      flex: 1 1 auto;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .brand-badge {
+      width: 74px;
+      height: 74px;
+      flex: 0 0 auto;
+      display: block;
+      object-fit: contain;
+      filter: drop-shadow(0 10px 18px rgba(150, 111, 103, 0.16));
+      transform: rotate(-4deg);
+    }
+
+    .coin-panel {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      min-height: 58px;
+      border-radius: 999px;
+      background: var(--card-strong);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      white-space: nowrap;
+    }
+
+    .audio-panel {
+      appearance: none;
+      -webkit-appearance: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      min-height: 58px;
+      border-radius: 999px;
+      background: var(--card-strong);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      white-space: nowrap;
+      color: var(--ink);
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .audio-panel.is-muted {
+      opacity: 0.8;
+    }
+
+    .audio-panel:focus-visible {
+      outline: none;
+    }
+
+    .audio-icon {
+      position: relative;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, #ffd36d, #f0a741);
+      color: #fff9dc;
+      box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.38);
+      flex: 0 0 auto;
+    }
+
+    .audio-icon svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+      display: block;
+    }
+
+    .audio-panel.is-muted .audio-icon::after {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 3px;
+      border-radius: 999px;
+      background: rgba(255, 249, 220, 0.92);
+      transform: rotate(-38deg);
+    }
+
+    .audio-value {
+      font-size: 1.02rem;
+      font-weight: 800;
+    }
+
+    .round-timer-panel {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      min-height: 58px;
+      border-radius: 999px;
+      background: var(--card-strong);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      white-space: nowrap;
+      transition: border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+    }
+
+    .round-timer-panel.is-idle {
+      opacity: 0.9;
+    }
+
+    .round-timer-panel.is-warning {
+      border-color: rgba(225, 121, 82, 0.45);
+      box-shadow:
+        0 0 0 1px rgba(225, 121, 82, 0.12),
+        var(--shadow-soft);
+    }
+
+    .round-timer-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, #cbbef8, #9f8de8);
+      color: #fff9ff;
+      font-weight: 900;
+      box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.34);
+    }
+
+    .round-timer-value {
+      font-size: 1.15rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+    }
+
+    .coin-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, #ffd36d, #f0a741);
+      color: #fff9dc;
+      font-weight: 900;
+      box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.38);
+    }
+
+    .coin-value {
+      font-size: 1.15rem;
+      font-weight: 800;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-rows: auto auto;
+      align-content: center;
+      gap: 14px;
+      width: 100%;
+      min-height: 0;
+      padding-top: 56px;
+    }
+
+    .customer-panel {
+      position: relative;
+      width: 100%;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+
+    .card {
+      position: relative;
+      width: 100%;
+      height: auto;
+      background: var(--card);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 28px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .section-title {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+    }
+
+    .section-copy {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 0.93rem;
+      line-height: 1.45;
+    }
+
+    .play-panel {
+      width: 100%;
+      display: grid;
+      gap: 10px;
+      justify-items: stretch;
+      touch-action: pan-y;
+    }
+
+    .board-status {
+      display: none;
+    }
+
+    .board-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(255, 251, 246, 0.88);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.92),
+        0 8px 14px rgba(108, 70, 44, 0.12);
+      color: var(--ink);
+    }
+
+    .board-status-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45);
+      overflow: hidden;
+    }
+
+    .board-status-label {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--ink-soft);
+      letter-spacing: 0.01em;
+    }
+
+    .category-panel {
+      width: 100%;
+      padding: 12px 14px 14px;
+      background:
+        linear-gradient(180deg, rgba(255, 249, 243, 0.95), rgba(255, 241, 232, 0.88));
+    }
+
+    .wood-card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(116, 68, 34, 0.48);
+      backdrop-filter: none;
+      background:
+        radial-gradient(circle at 18% 22%, rgba(118, 67, 33, 0.22) 0, rgba(118, 67, 33, 0.22) 10px, transparent 11px),
+        radial-gradient(circle at 82% 68%, rgba(133, 79, 39, 0.2) 0, rgba(133, 79, 39, 0.2) 9px, transparent 10px),
+        repeating-linear-gradient(
+          96deg,
+          rgba(255, 213, 163, 0.16) 0 10px,
+          rgba(163, 95, 49, 0.13) 10px 20px,
+          rgba(214, 146, 87, 0.1) 20px 30px
+        ),
+        linear-gradient(180deg, #c98951 0%, #af6d3b 48%, #91582f 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        inset 0 -14px 22px rgba(82, 44, 18, 0.14),
+        0 14px 26px rgba(101, 65, 42, 0.16);
+    }
+
+    .wood-card::before {
+      content: "";
+      position: absolute;
+      inset: 6px;
+      border-radius: 22px;
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 245, 232, 0.16),
+        inset 0 2px 8px rgba(255, 241, 226, 0.12),
+        inset 0 -2px 8px rgba(109, 64, 30, 0.12);
+      pointer-events: none;
+    }
+
+    .wood-card > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .play-panel.wood-card {
+      padding: 14px;
+    }
+
+    .category-panel.wood-card {
+      padding: 10px 12px 12px;
+    }
+
+    .category-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .category-chip {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 100%;
+      padding: 10px 8px 12px;
+      border: 2px solid transparent;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.86),
+        0 10px 18px rgba(150, 111, 103, 0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--ink);
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .category-chip.active {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 236, 221, 0.92));
+      border-color: rgba(0, 0, 0, 0.78);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.92),
+        0 10px 18px rgba(150, 111, 103, 0.12);
+    }
+
+    .category-chip:focus-visible {
+      outline: none;
+    }
+
+    .category-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.68);
+      box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45);
+      overflow: hidden;
+    }
+
+    .category-chip.active .category-icon {
+      box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.52),
+        0 8px 14px rgba(150, 111, 103, 0.12);
+    }
+
+    .category-icon .generator-asset,
+    .board-status-icon .generator-asset {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 8px rgba(120, 83, 52, 0.12));
+    }
+
+    .category-icon .machine,
+    .board-status-icon .machine {
+      width: 100%;
+      height: 100%;
+    }
+
+    .category-label {
+      font-size: 0.72rem;
+      font-weight: 800;
+      line-height: 1.1;
+      color: var(--ink-soft);
+    }
+
+    .customer-queue {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: stretch;
+      height: auto;
+      gap: 12px;
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .queue-slot {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 100%;
+      min-width: 0;
+      min-height: 188px;
+      height: 188px;
+      padding: 6px 6px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      color: var(--ink);
+      cursor: pointer;
+      text-align: center;
+      overflow: visible;
+      transition: none;
+    }
+
+    .queue-slot:hover {
+      transform: none;
+    }
+
+    .queue-slot.selected {
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .queue-slot.drop-active {
+      box-shadow: none;
+      background: transparent;
+    }
+
+    .queue-slot--empty {
+      background: transparent;
+    }
+
+    .queue-slot.completing {
+      background: transparent;
+    }
+
+    .queue-slot.entering {
+      animation: walk-in 650ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .queue-slot:focus-visible {
+      outline: none;
+    }
+
+    .queue-slot .customer-avatar {
+      display: block;
+      width: auto;
+      max-width: min(82%, 120px);
+      height: 100%;
+      max-height: 100%;
+      margin: 0 auto;
+      transform: none;
+      object-fit: contain;
+      object-position: bottom center;
+      filter: drop-shadow(0 8px 16px rgba(121, 99, 122, 0.16));
+    }
+
+    .slot-copy {
+      width: 100%;
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 2px;
+    }
+
+    .slot-top {
+      width: 100%;
+      min-height: 8px;
+    }
+
+    .slot-badges {
+      display: flex;
+      justify-content: center;
+    }
+
+    .timer-pill {
+      position: relative;
+      width: 100%;
+      height: 8px;
+      overflow: hidden;
+      display: block;
+      border-radius: 999px;
+      background: rgba(241, 235, 255, 0.55);
+      color: #705da4;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.56),
+        inset 0 0 0 1px rgba(164, 141, 188, 0.14);
+    }
+
+    .timer-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: var(--timer-progress, 100%);
+      border-radius: inherit;
+      background: linear-gradient(90deg, #c9b8f0, #ab96de);
+      transition: width 220ms linear;
+    }
+
+    .timer-pill.arrival {
+      background: rgba(232, 245, 255, 0.58);
+      color: #4c7aa3;
+    }
+
+    .timer-pill.arrival .timer-fill {
+      background: linear-gradient(90deg, #bbe0ff, #8fc4ef);
+    }
+
+    .timer-pill.warning {
+      background: rgba(255, 232, 216, 0.62);
+      color: #bb5f30;
+    }
+
+    .timer-pill.warning .timer-fill {
+      background: linear-gradient(90deg, #ffc5a8, #f59f86);
+    }
+
+    .timer-pill.success {
+      background: rgba(223, 246, 238, 0.62);
+      color: #427160;
+    }
+
+    .timer-pill.success .timer-fill {
+      background: linear-gradient(90deg, #aee9cb, #7ec5a8);
+    }
+
+    .seat-placeholder {
+      width: 88px;
+      height: 116px;
+      margin: 0 auto;
+      border-radius: 28px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, rgba(255, 237, 220, 0.94), rgba(243, 215, 198, 0.94));
+      box-shadow:
+        inset 0 -8px 0 rgba(255, 255, 255, 0.22),
+        0 10px 18px rgba(145, 110, 96, 0.1);
+      color: #b2764e;
+      font-size: 1.5rem;
+      font-weight: 900;
+    }
+
+    .order-stack {
+      width: 100%;
+      min-height: 56px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .order-token-card {
+      position: relative;
+      width: 50px;
+      height: 50px;
+      flex: 0 0 50px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 10px 18px rgba(145, 110, 96, 0.12);
+    }
+
+    .order-token-card.empty {
+      background: rgba(255, 255, 255, 0.68);
+      border: 1px dashed rgba(186, 148, 135, 0.4);
+      color: var(--ink-soft);
+    }
+
+    .order-token-visual {
+      position: relative;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+    }
+
+    .order-token-image {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 4px 8px rgba(130, 96, 78, 0.14));
+    }
+
+    .order-token-card.empty .order-token-visual {
+      width: 24px;
+      height: 24px;
+      border-radius: 10px;
+      background: rgba(249, 238, 230, 0.9);
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+
+    .order-token-cup {
+      position: relative;
+      width: 18px;
+      height: 18px;
+      border-radius: 5px 5px 8px 8px;
+      background: var(--item-color);
+      box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.28);
+    }
+
+    .order-token-cup::before {
+      content: "";
+      position: absolute;
+      left: 2px;
+      right: 2px;
+      top: -3px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--foam-color);
+    }
+
+    .order-token-cup::after {
+      content: "";
+      position: absolute;
+      top: 4px;
+      right: -5px;
+      width: 6px;
+      height: 8px;
+      border: 2px solid var(--item-color);
+      border-left: 0;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .level-badge,
+    .item-level,
+    .order-token-level {
+      position: absolute;
+      right: -3px;
+      bottom: -3px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--level-badge-color, #ef6f78);
+      color: var(--level-badge-text, #ffffff);
+      font-size: 0.5rem;
+      font-weight: 900;
+      letter-spacing: -0.01em;
+      line-height: 1;
+      border: 1px solid rgba(255, 255, 255, 0.82);
+      box-shadow: 0 4px 10px rgba(112, 89, 82, 0.15);
+    }
+
+    .order-token-count {
+      position: absolute;
+      left: -6px;
+      bottom: -4px;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 5px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, #ffb49f, #f08db3);
+      color: #fff;
+      font-size: 0.62rem;
+      font-weight: 900;
+      box-shadow: 0 8px 14px rgba(195, 123, 142, 0.28);
+    }
+
+    .character-stage {
+      position: relative;
+      width: 100%;
+      flex: 0 0 108px;
+      min-height: 108px;
+      max-height: 108px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-top: 0;
+      overflow: hidden;
+    }
+
+    .character-shadow {
+      position: absolute;
+      left: 50%;
+      bottom: 4px;
+      width: 68px;
+      height: 14px;
+      border-radius: 50%;
+      background: rgba(125, 99, 89, 0.12);
+      transform: translateX(-50%);
+      filter: blur(2px);
+    }
+
+    .served-strip {
+      width: 100%;
+      min-height: 16px;
+      margin-top: auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .served-chip {
+      width: 14px;
+      height: 14px;
+      padding: 0;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 8px 14px rgba(145, 110, 96, 0.08);
+      overflow: hidden;
+    }
+
+    .served-chip span {
+      display: none;
+    }
+
+    .served-chip .mini-cup {
+      margin: 2px auto 0;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px 2px 3px 3px;
+    }
+
+    .served-chip .mini-cup::before {
+      top: -2px;
+      height: 3px;
+    }
+
+    .served-chip .mini-cup::after {
+      top: 2px;
+      right: -3px;
+      width: 3px;
+      height: 5px;
+      border-width: 1px;
+    }
+
+    .served-image {
+      width: 12px;
+      height: 12px;
+      object-fit: contain;
+      display: block;
+    }
+
+    .bubble-title,
+    .bubble-orders,
+    .bubble-line {
+      display: none;
+    }
+
+    .customer-mood {
+      display: none;
+    }
+
+    .section-copy {
+      font-size: 0.84rem;
+      line-height: 1.35;
+    }
+
+    .table-card,
+    .table-head,
+    .table-drop-zone,
+    .table-surface,
+    .table-summary,
+    .table-summary-line,
+    .table-item,
+    .table-placeholder,
+    .table-footer,
+    .side-panel,
+    .tips,
+    .tip-chip,
+    .progress-list,
+    .progress-item {
+      display: none;
+    }
+
+    .bubble-title {
+      color: var(--ink-soft);
+    }
+
+    .customer-card {
+      position: relative;
+      min-height: 255px;
+      padding: 18px;
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 38%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 247, 243, 0.84));
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      overflow: hidden;
+    }
+
+    .customer-card.entering {
+      animation: walk-in 650ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .customer-scene {
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 16px;
+      align-items: center;
+    }
+
+    .customer-avatar {
+      position: relative;
+      width: 92px;
+      height: 138px;
+      margin: 2px auto 0;
+    }
+
+    .customer-avatar .shadow {
+      position: absolute;
+      left: 50%;
+      bottom: 8px;
+      width: 62px;
+      height: 16px;
+      background: rgba(125, 99, 89, 0.16);
+      border-radius: 50%;
+      transform: translateX(-50%);
+      filter: blur(2px);
+    }
+
+    .customer-avatar .body {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      width: 56px;
+      height: 58px;
+      border-radius: 22px 22px 18px 18px;
+      background: var(--outfit);
+      transform: translateX(-50%);
+      box-shadow: inset 0 -8px 0 rgba(255, 255, 255, 0.14);
+    }
+
+    .customer-avatar .apron {
+      position: absolute;
+      left: 50%;
+      bottom: 28px;
+      width: 34px;
+      height: 32px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.65);
+      transform: translateX(-50%);
+    }
+
+    .customer-avatar .head {
+      position: absolute;
+      left: 50%;
+      top: 12px;
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: var(--skin);
+      transform: translateX(-50%);
+      box-shadow: inset 0 -6px 0 rgba(255, 255, 255, 0.16);
+    }
+
+    .customer-avatar .hair {
+      position: absolute;
+      left: 50%;
+      top: 4px;
+      width: 76px;
+      height: 48px;
+      border-radius: 40px 40px 22px 22px;
+      background: var(--hair);
+      transform: translateX(-50%);
+    }
+
+    .customer-avatar .bangs {
+      position: absolute;
+      left: 50%;
+      top: 28px;
+      width: 70px;
+      height: 22px;
+      border-radius: 0 0 18px 18px;
+      background: var(--hair-accent);
+      transform: translateX(-50%);
+      clip-path: polygon(0 0, 100% 0, 92% 100%, 72% 70%, 56% 100%, 40% 68%, 18% 100%, 6% 76%);
+    }
+
+    .customer-avatar .eye {
+      position: absolute;
+      top: 42px;
+      width: 8px;
+      height: 10px;
+      border-radius: 50%;
+      background: #5e4b4b;
+    }
+
+    .customer-avatar .eye.left {
+      left: 27px;
+    }
+
+    .customer-avatar .eye.right {
+      right: 27px;
+    }
+
+    .customer-avatar .blush {
+      position: absolute;
+      top: 51px;
+      width: 10px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255, 148, 166, 0.55);
+      filter: blur(1px);
+    }
+
+    .customer-avatar .blush.left {
+      left: 18px;
+    }
+
+    .customer-avatar .blush.right {
+      right: 18px;
+    }
+
+    .customer-avatar .mouth {
+      position: absolute;
+      left: 50%;
+      top: 58px;
+      width: 12px;
+      height: 7px;
+      border-bottom: 2px solid #7c6260;
+      border-radius: 0 0 12px 12px;
+      transform: translateX(-50%);
+    }
+
+    .customer-avatar .arm {
+      position: absolute;
+      top: 76px;
+      width: 14px;
+      height: 34px;
+      border-radius: 999px;
+      background: var(--skin);
+    }
+
+    .customer-avatar .arm.left {
+      left: 10px;
+      transform: rotate(16deg);
+    }
+
+    .customer-avatar .arm.right {
+      right: 10px;
+      transform: rotate(-16deg);
+    }
+
+    .customer-avatar .leg {
+      position: absolute;
+      bottom: 2px;
+      width: 12px;
+      height: 24px;
+      border-radius: 999px;
+      background: #96756f;
+    }
+
+    .customer-avatar .leg.left {
+      left: 31px;
+    }
+
+    .customer-avatar .leg.right {
+      right: 31px;
+    }
+
+    .order-bubble {
+      position: relative;
+      padding: 14px 14px 12px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 24px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .order-bubble::before {
+      content: "";
+      position: absolute;
+      left: -10px;
+      top: 44px;
+      width: 22px;
+      height: 22px;
+      background: inherit;
+      transform: rotate(45deg);
+      border-radius: 7px;
+    }
+
+    .customer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .customer-name {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .customer-mood {
+      margin: 4px 0 0;
+      color: var(--ink-soft);
+      font-size: 0.85rem;
+    }
+
+    .reward-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255, 238, 191, 0.86);
+      color: #9e6b00;
+      font-size: 0.84rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .order-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .order-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 18px;
+      background: rgba(248, 240, 236, 0.9);
+      border: 1px solid rgba(201, 165, 155, 0.2);
+    }
+
+    .order-row.done {
+      background: rgba(223, 246, 238, 0.92);
+      border-color: rgba(140, 205, 177, 0.45);
+    }
+
+    .order-token {
+      min-width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 0.78rem;
+      font-weight: 900;
+      color: #fff;
+      box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.16);
+    }
+
+    .order-meta {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .order-meta strong,
+    .order-meta span {
+      display: block;
+    }
+
+    .order-meta strong {
+      font-size: 0.92rem;
+    }
+
+    .order-meta span {
+      margin-top: 3px;
+      color: var(--ink-soft);
+      font-size: 0.78rem;
+    }
+
+    .order-qty {
+      min-width: 44px;
+      text-align: center;
+      padding: 6px 0;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.92);
+      font-weight: 800;
+      font-size: 0.85rem;
+      color: var(--ink-soft);
+    }
+
+    .drop-zone {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 84px;
+      padding: 12px;
+      text-align: center;
+      color: var(--ink-soft);
+      border: 2px dashed rgba(179, 142, 132, 0.35);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.62);
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+      touch-action: none;
+    }
+
+    .drop-zone.active {
+      transform: translateY(-2px) scale(1.01);
+      border-color: rgba(120, 190, 160, 0.78);
+      background: rgba(227, 247, 239, 0.95);
+      color: #4c7365;
+    }
+
+    .board {
+      width: 100%;
+      height: auto;
+      max-width: 100%;
+      align-self: start;
+      aspect-ratio: 1 / 1;
+      display: grid;
+      grid-template-columns: repeat(var(--grid-count), minmax(0, 1fr));
+      gap: var(--board-gap);
+      padding: var(--board-pad);
+      border-radius: 28px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 249, 243, 0.76)),
+        linear-gradient(180deg, #ffe9d8, #f6fff9);
+      box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.75),
+        inset 0 -10px 18px rgba(236, 207, 193, 0.28),
+        var(--shadow-soft);
+      position: relative;
+    }
+
+    .board::before {
+      content: "";
+      position: absolute;
+      inset: var(--board-pad);
+      border-radius: 20px;
+      background-image: linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+      background-size:
+        calc((100% - (var(--board-gap) * (var(--grid-count) - 1))) / var(--grid-count))
+        calc((100% - (var(--board-gap) * (var(--grid-count) - 1))) / var(--grid-count));
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    .cell {
+      position: relative;
+      display: flex;
+      align-items: stretch;
+      justify-content: stretch;
+      aspect-ratio: 1 / 1;
+      border-radius: 16px;
+      background: rgba(248, 234, 226, 0.65);
+      border: 1px solid rgba(227, 192, 180, 0.22);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .cell.generator-cell {
+      background: linear-gradient(180deg, rgba(255, 225, 213, 0.96), rgba(252, 240, 234, 0.82));
+      border: 1px solid rgba(241, 169, 145, 0.28);
+    }
+
+    .generator-btn {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      border-radius: 16px;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      color: var(--ink);
+    }
+
+    .generator-btn::after {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border-radius: 14px;
+      border: 1px dashed rgba(175, 115, 103, 0.35);
+      pointer-events: none;
+    }
+
+    .generator-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .generator-inner {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 0;
+    }
+
+    .generator-asset {
+      display: block;
+      width: min(100%, 60px);
+      height: min(100%, 60px);
+      object-fit: contain;
+      pointer-events: none;
+      filter: drop-shadow(0 6px 10px rgba(120, 83, 52, 0.18));
+    }
+
+    .machine {
+      position: relative;
+      width: min(100%, 48px);
+      height: min(100%, 48px);
+      border-radius: 16px;
+      background: linear-gradient(180deg, #fffdf9, #f6d9d0);
+      box-shadow: inset 0 -5px 0 rgba(242, 176, 154, 0.3);
+    }
+
+    .machine::before,
+    .machine::after {
+      content: "";
+      position: absolute;
+      background: #7b625e;
+    }
+
+    .machine::before {
+      left: 21%;
+      top: 25%;
+      width: 58%;
+      height: 16%;
+      border-radius: 999px;
+    }
+
+    .machine::after {
+      left: 38%;
+      top: 50%;
+      width: 24%;
+      height: 32%;
+      border-radius: 0 0 10px 10px;
+    }
+
+    .brew-dot {
+      position: absolute;
+      top: 18%;
+      right: 18%;
+      width: 18%;
+      height: 18%;
+      border-radius: 50%;
+      background: var(--generator-color, #7bdab0);
+      box-shadow: 0 0 0 4px rgba(123, 218, 176, 0.16);
+      animation: pulse 1.5s infinite ease-in-out;
+    }
+
+    .item-card {
+      width: 100%;
+      height: 100%;
+      border-radius: 18px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      padding: 2px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 249, 245, 0.84));
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        0 8px 16px rgba(173, 135, 120, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.88);
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .item-card:active {
+      cursor: grabbing;
+    }
+
+    .item-card.drag-origin {
+      opacity: 0.35;
+    }
+
+    .cup-wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+    }
+
+    .item-art {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 7px 12px rgba(130, 96, 78, 0.16));
+      pointer-events: none;
+    }
+
+    .cup {
+      position: relative;
+      width: 58%;
+      height: 58%;
+      border-radius: 24% 24% 36% 36%;
+      background: var(--item-color);
+      box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.3);
+    }
+
+    .cup::before {
+      content: "";
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      top: -18%;
+      height: 24%;
+      border-radius: 999px;
+      background: var(--foam-color);
+      box-shadow: 0 2px 0 rgba(255, 255, 255, 0.24);
+    }
+
+    .cup::after {
+      content: "";
+      position: absolute;
+      top: 20%;
+      right: -28%;
+      width: 28%;
+      height: 42%;
+      border: 2px solid var(--item-color);
+      border-left: 0;
+      border-radius: 0 10px 10px 0;
+    }
+
+    .cup-mark {
+      position: absolute;
+      inset: 34% 26% auto;
+      height: 18%;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.34);
+    }
+
+    .cup-spark {
+      position: absolute;
+      top: 8%;
+      right: 4%;
+      width: 22%;
+      height: 22%;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.5);
+      opacity: var(--spark-opacity);
+    }
+
+    .item-level {
+      bottom: 0;
+      right: 0;
+    }
+
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .tips {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .tip-chip {
+      padding: 10px 12px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--ink-soft);
+      font-size: 0.88rem;
+      line-height: 1.4;
+    }
+
+    .progress-list {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .progress-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.74);
+    }
+
+    .progress-item .mini-token {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 0.74rem;
+      font-weight: 900;
+    }
+
+    .progress-meta strong,
+    .progress-meta span {
+      display: block;
+    }
+
+    .progress-meta strong {
+      font-size: 0.88rem;
+    }
+
+    .progress-meta span {
+      margin-top: 2px;
+      color: var(--ink-soft);
+      font-size: 0.75rem;
+    }
+
+    .drag-ghost {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: calc(84px * var(--viewport-scale));
+      height: calc(84px * var(--viewport-scale));
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.92);
+      transition: opacity 110ms ease;
+    }
+
+    .drag-ghost.visible {
+      opacity: 0.95;
+    }
+
+    .drag-ghost .item-card {
+      height: 100%;
+      border-radius: 22px;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.12);
+      }
+    }
+
+    @keyframes walk-in {
+      0% {
+        opacity: 0;
+        transform: translateX(120px);
+      }
+      70% {
+        opacity: 1;
+        transform: translateX(-8px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <div id="viewportStage" class="viewport-stage">
+    <div id="viewportFrame" class="viewport-frame">
+      <div id="viewportScaler" class="viewport-scaler">
+        <div id="startScreen" class="start-screen">
+          <div class="start-screen-content">
+            <div class="start-screen-top">
+              <div class="start-screen-toolbar">
+                <button id="leaderboardButton" class="header-icon-button" type="button" aria-label="Leaderboard">
+                  <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 4h10v2h2a1 1 0 0 1 1 1v2c0 2.21-1.79 4-4 4h-.35A6.01 6.01 0 0 1 13 15.92V18h3a1 1 0 0 1 0 2H8a1 1 0 0 1 0-2h3v-2.08A6.01 6.01 0 0 1 8.35 13H8c-2.21 0-4-1.79-4-4V7a1 1 0 0 1 1-1h2V4Zm10 4v1a5 5 0 0 0 .1 1H18c1.1 0 2-.9 2-2H17ZM7 8H4c0 1.1.9 2 2 2h.9A5 5 0 0 0 7 9V8Z"/>
+                  </svg>
+                </button>
+                <button id="startMuteButton" class="header-icon-button" type="button" aria-label="Mute audio" aria-pressed="false">
+                  <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M14 4.5a1 1 0 0 1 1.7.72v13.56a1 1 0 0 1-1.7.72L9.5 15H6a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h3.5L14 4.5Zm4.85 3.44a1 1 0 0 1 1.41 0A6.97 6.97 0 0 1 22.3 13a6.97 6.97 0 0 1-2.04 5.06 1 1 0 1 1-1.41-1.42A4.98 4.98 0 0 0 20.3 13c0-1.37-.56-2.62-1.45-3.64a1 1 0 0 1 0-1.42Zm-2.82 2.83a1 1 0 0 1 1.4 0c.58.58.87 1.38.87 2.23s-.29 1.65-.87 2.23a1 1 0 0 1-1.4-1.42 1.14 1.14 0 0 0 0-1.62 1 1 0 0 1 0-1.42Z"/>
+                  </svg>
+                </button>
+              </div>
+              <img
+                class="start-logo"
+                src="start-screen-logo.svg"
+                alt="Yume Cafe"
+              />
+            </div>
+            <div class="start-screen-actions">
+              <button id="startGameButton" class="start-button" type="button">Start Game</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="gameShell" class="app-shell game-shell is-hidden">
+          <header class="top-bar top-bar-shell wood-card">
+            <div class="brand">
+              <img
+                class="brand-badge"
+                src="prompt_design_a_playful_casual_game_logo_using_the_019d1b61-7326-7621-ba7a-1cc7c84fb963.svg"
+                alt="Merge Cafe logo"
+              />
+            </div>
+            <div class="top-actions">
+              <div id="roundTimerPanel" class="round-timer-panel is-idle" aria-live="polite">
+                <div class="round-timer-icon">T</div>
+                <div>
+                  <div style="font-size: 0.76rem; color: var(--ink-soft); font-weight: 700;">Time</div>
+                  <div id="roundTimerValue" class="round-timer-value">03:00</div>
+                </div>
+              </div>
+              <div class="coin-panel" aria-live="polite">
+                <div class="coin-icon">C</div>
+                <div>
+                  <div style="font-size: 0.76rem; color: var(--ink-soft); font-weight: 700;">Coins</div>
+                  <div id="coinValue" class="coin-value">0</div>
+                </div>
+              </div>
+              <button id="gameMuteButton" class="audio-panel" type="button" aria-label="Mute audio" aria-pressed="false">
+                <div class="audio-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M14 4.5a1 1 0 0 1 1.7.72v13.56a1 1 0 0 1-1.7.72L9.5 15H6a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h3.5L14 4.5Zm4.85 3.44a1 1 0 0 1 1.41 0A6.97 6.97 0 0 1 22.3 13a6.97 6.97 0 0 1-2.04 5.06 1 1 0 1 1-1.41-1.42A4.98 4.98 0 0 0 20.3 13c0-1.37-.56-2.62-1.45-3.64a1 1 0 0 1 0-1.42Zm-2.82 2.83a1 1 0 0 1 1.4 0c.58.58.87 1.38.87 2.23s-.29 1.65-.87 2.23a1 1 0 0 1-1.4-1.42 1.14 1.14 0 0 0 0-1.62 1 1 0 0 1 0-1.42Z"/>
+                  </svg>
+                </div>
+                <div>
+                  <div style="font-size: 0.76rem; color: var(--ink-soft); font-weight: 700;">Sound</div>
+                  <div id="gameMuteValue" class="audio-value">On</div>
+                </div>
+              </button>
+            </div>
+          </header>
+
+          <main class="layout">
+            <section class="customer-panel" aria-label="Customer area">
+              <div id="customerQueue" class="customer-queue"></div>
+              <div id="tutorialOverlay" class="tutorial-overlay is-hidden" aria-live="polite"></div>
+            </section>
+
+            <section id="playPanel" class="play-panel card wood-card">
+              <div id="boardStatus" class="board-status" aria-live="polite"></div>
+              <div id="board" class="board" aria-label="Merge puzzle board"></div>
+            </section>
+
+            <section class="category-panel card wood-card" aria-label="Cafe categories">
+              <div id="categoryStrip" class="category-strip"></div>
+            </section>
+          </main>
+
+          <div id="roundEndOverlay" class="round-end-overlay is-hidden" aria-live="polite">
+            <div class="round-end-card">
+              <div class="round-end-kicker">Round Over</div>
+              <h2 class="round-end-title">Cafe Closed</h2>
+              <p id="roundEndSummary" class="round-end-summary"></p>
+              <input
+                id="roundEndPlayerIdInput"
+                class="player-id-input"
+                type="text"
+                inputmode="text"
+                autocomplete="off"
+                maxlength="18"
+                placeholder="Enter your ID"
+              />
+              <div class="round-end-actions">
+                <button id="submitScoreButton" class="round-end-button" type="button">Save Score</button>
+                <button id="newRoundButton" class="round-end-button secondary" type="button">New Round</button>
+              </div>
+              <div class="leaderboard-card">
+                <h2 class="leaderboard-title">Leaderboard</h2>
+                <div id="roundEndLeaderboardStatus" class="leaderboard-status"></div>
+                <div id="roundEndLeaderboardList" class="leaderboard-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="leaderboardOverlay" class="leaderboard-overlay is-hidden" aria-live="polite">
+          <div class="leaderboard-overlay-card">
+            <div class="leaderboard-overlay-top">
+              <h2 class="leaderboard-title">Leaderboard</h2>
+              <button id="leaderboardCloseButton" class="leaderboard-close" type="button">Close</button>
+            </div>
+            <div id="leaderboardOverlayStatus" class="leaderboard-status"></div>
+            <div id="leaderboardOverlayList" class="leaderboard-list"></div>
+          </div>
+        </div>
+
+        <audio id="gameBgm" src="game-bgm.mp3" preload="auto" loop playsinline></audio>
+      </div>
+    </div>
+  </div>
+
+  <div id="dragGhost" class="drag-ghost" aria-hidden="true"></div>
+
+  <script>
+    // Core item data is centralized by category so new families can be added cleanly later.
+    const CATEGORY_DEFS = [
+      { id: "drinks", label: "Drinks", short: "Dr", chipTop: "#ffe0d3", chipBottom: "#f6c4b1", noun: "drink", levelColor: "#ef6f78", levelTextColor: "#ffffff" },
+      { id: "bakery", label: "Bakery", short: "Bk", chipTop: "#ffeab8", chipBottom: "#f7d685", noun: "bakery item", levelColor: "#f0c650", levelTextColor: "#604517" },
+      { id: "dessert", label: "Dessert", short: "Ds", chipTop: "#dff4ec", chipBottom: "#bae7d8", noun: "dessert", levelColor: "#79c88c", levelTextColor: "#ffffff" }
+    ];
+
+    const TUTORIAL_STEPS = [
+      {
+        title: "First Order",
+        body: "One guest is here. They want a Lv1 coffee and a Lv2 bakery item.",
+        actionLabel: "Next"
+      },
+      {
+        title: "Brew Coffee",
+        body: "Tap the center brewer to make one Lv1 coffee.",
+        condition: () => gameState.tutorial && gameState.tutorial.generatedDrinks >= 1
+      },
+      {
+        title: "Serve Coffee",
+        body: "Drag the Lv1 coffee onto the guest.",
+        condition: () => getTutorialRequestRemaining("drinks", 1) === 0
+      },
+      {
+        title: "Switch Category",
+        body: "Tap Bakery below to swap the brewer.",
+        condition: () => gameState.selectedCategory === "bakery"
+      },
+      {
+        title: "Bake Two",
+        body: "Tap the brewer twice to make two Lv1 bakery items.",
+        condition: () => gameState.tutorial && gameState.tutorial.generatedBakery >= 2
+      },
+      {
+        title: "Merge Bakery",
+        body: "Drag one bakery item onto the other to merge it into Lv2 bakery.",
+        condition: () => gameState.board.some((item) => item && item.category === "bakery" && item.level === 2)
+      },
+      {
+        title: "Finish Order",
+        body: "Drag the Lv2 bakery item to the guest.",
+        condition: () => isTutorialOrderComplete()
+      },
+      {
+        title: "You’re Ready",
+        body: "Now keep brewing, merging, and serving customers on your own.",
+        actionLabel: "Start Cafe"
+      }
+    ];
+
+    const ITEM_CHAINS = {
+      drinks: [
+        { level: 1, id: "espresso", name: "Espresso", short: "Esp", color: "#c9896f", foam: "#f8e3c2", reward: 8, spark: 0.18 },
+        { level: 2, id: "americano", name: "Americano", short: "Amr", color: "#8bc5b7", foam: "#e7fff8", reward: 14, spark: 0.22 },
+        { level: 3, id: "cafe-latte", name: "Cafe Latte", short: "Lat", color: "#f4b98c", foam: "#fff0d8", reward: 20, spark: 0.28 },
+        { level: 4, id: "vanilla-latte", name: "Vanilla Latte", short: "Van", color: "#f3a7bf", foam: "#fff0f7", reward: 28, spark: 0.34 },
+        { level: 5, id: "signature-latte", name: "Signature Latte", short: "Sig", color: "#ad9ae8", foam: "#f4eeff", reward: 40, spark: 0.4 }
+      ].map((item) => ({ ...item, category: "drinks" })),
+      bakery: [
+        { level: 1, id: "croissant", name: "Croissant", short: "Cro", color: "#d6a267", foam: "#f7dfb7", reward: 8, spark: 0.18 },
+        { level: 2, id: "honey-bun", name: "Honey Bun", short: "Bun", color: "#e1b77b", foam: "#fde8c7", reward: 14, spark: 0.22 },
+        { level: 3, id: "fruit-danish", name: "Fruit Danish", short: "Dan", color: "#f0b67d", foam: "#ffe8ca", reward: 20, spark: 0.28 },
+        { level: 4, id: "cream-roll", name: "Cream Roll", short: "Rol", color: "#f2c8a1", foam: "#fff1dc", reward: 28, spark: 0.34 },
+        { level: 5, id: "bakery-box", name: "Bakery Box", short: "Box", color: "#c89b7e", foam: "#f8e6d9", reward: 40, spark: 0.4 }
+      ].map((item) => ({ ...item, category: "bakery" })),
+      dessert: [
+        { level: 1, id: "pudding", name: "Pudding", short: "Pud", color: "#f4cb73", foam: "#fff0bd", reward: 8, spark: 0.18 },
+        { level: 2, id: "macaron", name: "Macaron", short: "Mac", color: "#98d1c3", foam: "#eefdf8", reward: 14, spark: 0.22 },
+        { level: 3, id: "cake-slice", name: "Cake Slice", short: "Cak", color: "#f2a8bf", foam: "#fff1f6", reward: 20, spark: 0.28 },
+        { level: 4, id: "berry-mousse", name: "Berry Mousse", short: "Mou", color: "#ef8ea2", foam: "#ffe8ee", reward: 28, spark: 0.34 },
+        { level: 5, id: "dream-parfait", name: "Dream Parfait", short: "Par", color: "#b7a0eb", foam: "#f4efff", reward: 40, spark: 0.4 }
+      ].map((item) => ({ ...item, category: "dessert" }))
+    };
+
+    const ITEMS = Object.values(ITEM_CHAINS).flat();
+    const MAX_ITEM_LEVEL = ITEM_CHAINS.drinks.length;
+
+    // Customer presets are visual-only, so the slot logic can reuse the same order system.
+    const CUSTOMERS = [
+      { name: "Mina", mood: "Sketching between classes", skin: "#f7d0bb", hair: "#7f5a4d", hairAccent: "#6a483f", outfit: "#ffb9c8" },
+      { name: "Yuri", mood: "Morning commute rush", skin: "#f2c2a8", hair: "#44353b", hairAccent: "#36272d", outfit: "#9fd7c9" },
+      { name: "Sora", mood: "Strolling after dance club", skin: "#f6d9c7", hair: "#d48a72", hairAccent: "#bb705f", outfit: "#ffd38b" },
+      { name: "Hana", mood: "Reading by the cafe window", skin: "#f0c7b0", hair: "#5c4b68", hairAccent: "#45384f", outfit: "#b8c7ff" },
+      { name: "Nari", mood: "Hunting for something sweet", skin: "#f3ceb8", hair: "#a76b54", hairAccent: "#8f5946", outfit: "#ffc4a8" }
+    ];
+
+    const BOARD_SIZE = 7;
+    const VIEWPORT_WIDTH = 540;
+    const VIEWPORT_HEIGHT = 1080;
+    const VIEWPORT_MARGIN = 24;
+    const CATEGORY_SWIPE_THRESHOLD = 36;
+    const TOTAL_CELLS = BOARD_SIZE * BOARD_SIZE;
+    const CENTER_ROW = Math.floor((BOARD_SIZE - 1) / 2);
+    const CENTER_COLUMN = Math.floor((BOARD_SIZE - 1) / 2);
+    const CENTER_INDEX = (CENTER_ROW * BOARD_SIZE) + CENTER_COLUMN;
+    const CUSTOMER_AVATAR_SRCS = [
+      "telegram-cloud-photo-size-5-6199458874721505042-x-removebg-preview.png",
+      "customer-avatar-2.png",
+      "customer-avatar-3.png",
+      "customer-avatar-4.png"
+    ];
+    // Asset maps keep art wiring separate from the gameplay data.
+    const ITEM_ASSETS = {
+      drinks: {
+        1: "drink1.png",
+        2: "drink2.png",
+        3: "drink3.png",
+        4: "drink4.png",
+        5: "drink5.png"
+      },
+      bakery: {
+        1: "bread1.png",
+        2: "bread2.png",
+        3: "bread3.png",
+        4: "bread4.png",
+        5: "bread5.png"
+      },
+      dessert: {
+        1: "des1.png",
+        2: "des2.png",
+        3: "des3.png",
+        4: "des4.png",
+        5: "des5.png"
+      }
+    };
+    const GENERATOR_ASSETS = {
+      drinks: "Espressomachine.png",
+      bakery: "bakeryoven.png",
+      dessert: "dessertfridge.png"
+    };
+    const CUSTOMER_SLOT_COUNT = 3;
+    const TIMER_TICK_MS = 1000;
+    const EXIT_DELAY_AFTER_COMPLETE_MS = 1400;
+    const ROUND_DURATION_MS = 180000;
+    const PLAYER_ID_STORAGE_KEY = "merge-cafe-player-id";
+    const AUDIO_MUTED_STORAGE_KEY = "merge-cafe-audio-muted";
+    const LEADERBOARD_CONFIG = {
+      url: "https://ngpkhlwelbbrbsqsaaxc.supabase.co",
+      anonKey: "sb_publishable_CTExLuGjgVuCu1BmIwYOmg_953sY--5",
+      table: "leaderboard_scores"
+    };
+
+    // The main state keeps board data separate from per-slot customer orders.
+    const gameState = {
+      coins: 0,
+      servedCustomers: 0,
+      customerSeed: 0,
+      board: createEmptyBoard(),
+      customerSlots: Array.from({ length: CUSTOMER_SLOT_COUNT }, (_, slotIndex) => createEmptyCustomerSlot(slotIndex)),
+      selectedCategory: CATEGORY_DEFS[0].id,
+      selectedCustomerSlot: 0,
+      feedback: "Pick a category, then tap the brewer.",
+      drag: null,
+      categorySwipe: null,
+      initialized: false,
+      tutorial: null,
+      tutorialDismissed: false,
+      leaderboardOpen: false,
+      roundComplete: false,
+      roundSubmitted: false,
+      roundActive: false,
+      roundEndsAt: null,
+      roundRemainingMs: ROUND_DURATION_MS,
+      playerId: "",
+      audioMuted: false,
+      leaderboardEntries: [],
+      leaderboardLoading: false,
+      leaderboardSubmitting: false,
+      leaderboardStatusText: "",
+      timerLoop: null
+    };
+
+    const startScreenElement = document.getElementById("startScreen");
+    const startGameButtonElement = document.getElementById("startGameButton");
+    const gameShellElement = document.getElementById("gameShell");
+    const leaderboardButtonElement = document.getElementById("leaderboardButton");
+    const startMuteButtonElement = document.getElementById("startMuteButton");
+    const tutorialOverlayElement = document.getElementById("tutorialOverlay");
+    const leaderboardOverlayElement = document.getElementById("leaderboardOverlay");
+    const leaderboardCloseButtonElement = document.getElementById("leaderboardCloseButton");
+    const leaderboardOverlayStatusElement = document.getElementById("leaderboardOverlayStatus");
+    const leaderboardOverlayListElement = document.getElementById("leaderboardOverlayList");
+    const roundEndOverlayElement = document.getElementById("roundEndOverlay");
+    const roundEndSummaryElement = document.getElementById("roundEndSummary");
+    const roundEndPlayerIdInputElement = document.getElementById("roundEndPlayerIdInput");
+    const submitScoreButtonElement = document.getElementById("submitScoreButton");
+    const newRoundButtonElement = document.getElementById("newRoundButton");
+    const roundEndLeaderboardStatusElement = document.getElementById("roundEndLeaderboardStatus");
+    const roundEndLeaderboardListElement = document.getElementById("roundEndLeaderboardList");
+    const playPanelElement = document.getElementById("playPanel");
+    const boardStatusElement = document.getElementById("boardStatus");
+    const boardElement = document.getElementById("board");
+    const categoryStripElement = document.getElementById("categoryStrip");
+    const roundTimerPanelElement = document.getElementById("roundTimerPanel");
+    const roundTimerValueElement = document.getElementById("roundTimerValue");
+    const coinValueElement = document.getElementById("coinValue");
+    const gameMuteButtonElement = document.getElementById("gameMuteButton");
+    const gameMuteValueElement = document.getElementById("gameMuteValue");
+    const customerQueueElement = document.getElementById("customerQueue");
+    const gameBgmElement = document.getElementById("gameBgm");
+    const progressListElement = document.getElementById("progressList");
+    const feedbackElement = document.getElementById("feedback");
+    const dragGhostElement = document.getElementById("dragGhost");
+
+    updateViewportScale();
+    window.addEventListener("resize", updateViewportScale);
+    hydratePlayerId();
+    hydrateAudioMuted();
+    syncPlayerIdInputs();
+    syncMuteButtons();
+    renderLeaderboardPanels();
+    renderLeaderboardOverlay();
+    renderRoundEndOverlay();
+    void loadLeaderboard();
+    window.addEventListener("load", startGameBgm, { once: true });
+    window.addEventListener("pointerdown", startGameBgm, { once: true, passive: true });
+    window.addEventListener("keydown", startGameBgm, { once: true });
+    startGameButtonElement.addEventListener("click", startGame);
+    leaderboardButtonElement.addEventListener("click", openLeaderboardOverlay);
+    startMuteButtonElement.addEventListener("click", toggleAudioMuted);
+    gameMuteButtonElement.addEventListener("click", toggleAudioMuted);
+    leaderboardCloseButtonElement.addEventListener("click", closeLeaderboardOverlay);
+    roundEndPlayerIdInputElement.addEventListener("input", handlePlayerIdInputInput);
+    submitScoreButtonElement.addEventListener("click", submitLeaderboardScore);
+    newRoundButtonElement.addEventListener("click", handleNewRound);
+
+    function updateViewportScale() {
+      const availableWidth = Math.max(0, window.innerWidth - VIEWPORT_MARGIN);
+      const availableHeight = Math.max(0, window.innerHeight - VIEWPORT_MARGIN);
+      const scale = Math.max(0.1, Math.min(availableWidth / VIEWPORT_WIDTH, availableHeight / VIEWPORT_HEIGHT));
+
+      document.documentElement.style.setProperty("--viewport-scale", scale.toFixed(4));
+      document.documentElement.style.setProperty("--viewport-scaled-width", `${VIEWPORT_WIDTH * scale}px`);
+      document.documentElement.style.setProperty("--viewport-scaled-height", `${VIEWPORT_HEIGHT * scale}px`);
+    }
+
+    function startGameBgm() {
+      if (!gameBgmElement) {
+        return;
+      }
+
+      gameBgmElement.volume = 0.42;
+      gameBgmElement.muted = gameState.audioMuted;
+      if (!gameBgmElement.paused) {
+        return;
+      }
+
+      const playPromise = gameBgmElement.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {});
+      }
+    }
+
+    function hydrateAudioMuted() {
+      try {
+        gameState.audioMuted = window.localStorage.getItem(AUDIO_MUTED_STORAGE_KEY) === "1";
+      } catch (error) {
+        gameState.audioMuted = false;
+      }
+
+      if (gameBgmElement) {
+        gameBgmElement.muted = gameState.audioMuted;
+      }
+    }
+
+    function syncMuteButtons() {
+      const isMuted = gameState.audioMuted;
+
+      if (startMuteButtonElement) {
+        startMuteButtonElement.classList.toggle("is-muted", isMuted);
+        startMuteButtonElement.setAttribute("aria-label", isMuted ? "Unmute audio" : "Mute audio");
+        startMuteButtonElement.setAttribute("aria-pressed", String(isMuted));
+      }
+
+      if (gameMuteButtonElement) {
+        gameMuteButtonElement.classList.toggle("is-muted", isMuted);
+        gameMuteButtonElement.setAttribute("aria-label", isMuted ? "Unmute audio" : "Mute audio");
+        gameMuteButtonElement.setAttribute("aria-pressed", String(isMuted));
+      }
+
+      if (gameMuteValueElement) {
+        gameMuteValueElement.textContent = isMuted ? "Off" : "On";
+      }
+    }
+
+    function setAudioMuted(isMuted) {
+      gameState.audioMuted = Boolean(isMuted);
+
+      if (gameBgmElement) {
+        gameBgmElement.muted = gameState.audioMuted;
+      }
+
+      try {
+        if (gameState.audioMuted) {
+          window.localStorage.setItem(AUDIO_MUTED_STORAGE_KEY, "1");
+        } else {
+          window.localStorage.removeItem(AUDIO_MUTED_STORAGE_KEY);
+        }
+      } catch (error) {
+        // Ignore storage failures and keep the in-memory setting.
+      }
+
+      syncMuteButtons();
+    }
+
+    function toggleAudioMuted() {
+      setAudioMuted(!gameState.audioMuted);
+      if (!gameState.audioMuted) {
+        startGameBgm();
+      }
+    }
+
+    function isLeaderboardConfigured() {
+      return Boolean(LEADERBOARD_CONFIG.url && LEADERBOARD_CONFIG.anonKey);
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+      })[character]);
+    }
+
+    function sanitizePlayerId(value) {
+      return String(value || "")
+        .replace(/[^a-zA-Z0-9_-]/g, "")
+        .slice(0, 18);
+    }
+
+    function hydratePlayerId() {
+      try {
+        gameState.playerId = sanitizePlayerId(window.localStorage.getItem(PLAYER_ID_STORAGE_KEY) || "");
+      } catch (error) {
+        gameState.playerId = "";
+      }
+    }
+
+    function setPlayerId(value) {
+      gameState.playerId = sanitizePlayerId(value);
+
+      try {
+        if (gameState.playerId) {
+          window.localStorage.setItem(PLAYER_ID_STORAGE_KEY, gameState.playerId);
+        } else {
+          window.localStorage.removeItem(PLAYER_ID_STORAGE_KEY);
+        }
+      } catch (error) {
+        // Ignore local storage failures.
+      }
+
+      syncPlayerIdInputs();
+    }
+
+    function syncPlayerIdInputs() {
+      if (roundEndPlayerIdInputElement) {
+        roundEndPlayerIdInputElement.value = gameState.playerId;
+      }
+    }
+
+    function handlePlayerIdInputInput(event) {
+      const sanitized = sanitizePlayerId(event.target.value);
+      if (event.target.value !== sanitized) {
+        event.target.value = sanitized;
+      }
+
+      setPlayerId(sanitized);
+      renderRoundEndOverlay();
+    }
+
+    function getLeaderboardRowsMarkup(limit) {
+      if (!gameState.leaderboardEntries.length) {
+        return "";
+      }
+
+      return gameState.leaderboardEntries.slice(0, limit).map((entry, index) => `
+        <div class="leaderboard-row">
+          <div class="leaderboard-rank">#${index + 1}</div>
+          <div class="leaderboard-name">${escapeHtml(entry.player_id)}</div>
+          <div class="leaderboard-score">${entry.score}</div>
+        </div>
+      `).join("");
+    }
+
+    function getLeaderboardStatusText() {
+      if (!isLeaderboardConfigured()) {
+        return "Add your Supabase anon key in index.html to enable online scores.";
+      }
+
+      if (gameState.leaderboardSubmitting) {
+        return "Saving score...";
+      }
+
+      if (gameState.leaderboardLoading) {
+        return "Loading leaderboard...";
+      }
+
+      if (gameState.leaderboardStatusText) {
+        return gameState.leaderboardStatusText;
+      }
+
+      if (!gameState.leaderboardEntries.length) {
+        return "No scores yet.";
+      }
+
+      return "";
+    }
+
+    function renderLeaderboardPanels() {
+      const statusText = getLeaderboardStatusText();
+      const popupRows = getLeaderboardRowsMarkup(10);
+      const roundRows = getLeaderboardRowsMarkup(10);
+
+      if (roundEndLeaderboardStatusElement) {
+        roundEndLeaderboardStatusElement.textContent = statusText;
+      }
+      if (leaderboardOverlayStatusElement) {
+        leaderboardOverlayStatusElement.textContent = statusText;
+      }
+      if (roundEndLeaderboardListElement) {
+        roundEndLeaderboardListElement.innerHTML = roundRows;
+      }
+      if (leaderboardOverlayListElement) {
+        leaderboardOverlayListElement.innerHTML = popupRows;
+      }
+    }
+
+    function renderLeaderboardOverlay() {
+      if (!leaderboardOverlayElement) {
+        return;
+      }
+
+      leaderboardOverlayElement.classList.toggle("is-hidden", !gameState.leaderboardOpen);
+      renderLeaderboardPanels();
+    }
+
+    function openLeaderboardOverlay() {
+      gameState.leaderboardOpen = true;
+      renderLeaderboardOverlay();
+      void loadLeaderboard();
+    }
+
+    function closeLeaderboardOverlay() {
+      gameState.leaderboardOpen = false;
+      renderLeaderboardOverlay();
+    }
+
+    async function loadLeaderboard() {
+      if (!isLeaderboardConfigured()) {
+        renderLeaderboardPanels();
+        return;
+      }
+
+      gameState.leaderboardLoading = true;
+      gameState.leaderboardStatusText = "";
+      renderLeaderboardPanels();
+
+      try {
+        const response = await fetch(
+          `${LEADERBOARD_CONFIG.url}/rest/v1/${LEADERBOARD_CONFIG.table}?select=player_id,score,coins,served_customers,created_at&order=score.desc,created_at.asc&limit=10`,
+          {
+            headers: {
+              apikey: LEADERBOARD_CONFIG.anonKey,
+              Authorization: `Bearer ${LEADERBOARD_CONFIG.anonKey}`
+            }
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Leaderboard load failed (${response.status})`);
+        }
+
+        gameState.leaderboardEntries = await response.json();
+      } catch (error) {
+        gameState.leaderboardEntries = [];
+        gameState.leaderboardStatusText = error.message || "Leaderboard unavailable.";
+      } finally {
+        gameState.leaderboardLoading = false;
+        renderLeaderboardPanels();
+      }
+    }
+
+    function renderRoundEndOverlay() {
+      if (!roundEndOverlayElement || !roundEndSummaryElement || !submitScoreButtonElement) {
+        return;
+      }
+
+      roundEndOverlayElement.classList.toggle("is-hidden", !gameState.roundComplete);
+      roundEndSummaryElement.textContent = `Score ${gameState.coins}. Guests served ${gameState.servedCustomers}.`;
+      submitScoreButtonElement.disabled = gameState.leaderboardSubmitting || gameState.roundSubmitted;
+      submitScoreButtonElement.textContent = gameState.roundSubmitted ? "Saved" : "Save Score";
+      syncPlayerIdInputs();
+      renderLeaderboardPanels();
+    }
+
+    function hideRoundEndOverlay() {
+      if (!roundEndOverlayElement) {
+        return;
+      }
+
+      roundEndOverlayElement.classList.add("is-hidden");
+    }
+
+    function resetRunState() {
+      stopCustomerLoop();
+
+      if (gameState.drag) {
+        cleanupDrag();
+      }
+
+      gameState.coins = 0;
+      gameState.servedCustomers = 0;
+      gameState.customerSeed = 0;
+      gameState.board = createEmptyBoard();
+      gameState.customerSlots = Array.from({ length: CUSTOMER_SLOT_COUNT }, (_, slotIndex) => createEmptyCustomerSlot(slotIndex));
+      gameState.selectedCategory = CATEGORY_DEFS[0].id;
+      gameState.selectedCustomerSlot = 0;
+      gameState.feedback = "Pick a category, then tap the brewer.";
+      gameState.tutorial = null;
+      gameState.leaderboardOpen = false;
+      gameState.roundComplete = false;
+      gameState.roundSubmitted = false;
+      gameState.leaderboardSubmitting = false;
+      gameState.leaderboardStatusText = "";
+      resetRoundTimer();
+      hideRoundEndOverlay();
+      renderLeaderboardOverlay();
+
+      if (gameState.initialized) {
+        renderCategoryStrip();
+        renderBoardStatus();
+        renderBoard();
+        renderCoins();
+        renderCustomerArea();
+        renderFeedback();
+        renderRoundEndOverlay();
+      }
+    }
+
+    async function submitLeaderboardScore() {
+      if (!gameState.roundComplete || gameState.roundSubmitted || gameState.leaderboardSubmitting) {
+        return;
+      }
+
+      const nextPlayerId = sanitizePlayerId(roundEndPlayerIdInputElement.value || gameState.playerId);
+      if (!nextPlayerId) {
+        gameState.leaderboardStatusText = "Enter your ID first.";
+        renderLeaderboardPanels();
+        roundEndPlayerIdInputElement.focus();
+        return;
+      }
+
+      setPlayerId(nextPlayerId);
+
+      if (!isLeaderboardConfigured()) {
+        gameState.leaderboardStatusText = "Add your Supabase anon key in index.html first.";
+        renderLeaderboardPanels();
+        return;
+      }
+
+      gameState.leaderboardSubmitting = true;
+      gameState.leaderboardStatusText = "";
+      renderRoundEndOverlay();
+
+      try {
+        const response = await fetch(`${LEADERBOARD_CONFIG.url}/rest/v1/${LEADERBOARD_CONFIG.table}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Prefer: "return=representation",
+            apikey: LEADERBOARD_CONFIG.anonKey,
+            Authorization: `Bearer ${LEADERBOARD_CONFIG.anonKey}`
+          },
+          body: JSON.stringify({
+            player_id: gameState.playerId,
+            score: gameState.coins,
+            coins: gameState.coins,
+            served_customers: gameState.servedCustomers
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Score save failed (${response.status})`);
+        }
+
+        gameState.roundSubmitted = true;
+        await loadLeaderboard();
+        gameState.leaderboardStatusText = "Score saved.";
+      } catch (error) {
+        gameState.leaderboardStatusText = error.message || "Score save failed.";
+      } finally {
+        gameState.leaderboardSubmitting = false;
+        renderRoundEndOverlay();
+      }
+    }
+
+    function handleRoundEnd() {
+      if (gameState.roundComplete) {
+        return;
+      }
+
+      stopCustomerLoop();
+      gameState.roundComplete = true;
+      gameState.roundSubmitted = false;
+      gameState.leaderboardSubmitting = false;
+      gameState.leaderboardStatusText = "";
+      renderCustomerArea();
+      renderRoundEndOverlay();
+      void loadLeaderboard();
+      setFeedback("Round over.");
+    }
+
+    function handleNewRound() {
+      resetRunState();
+      gameState.tutorialDismissed = true;
+      closeLeaderboardOverlay();
+      startScreenElement.classList.add("is-hidden");
+      gameShellElement.classList.remove("is-hidden");
+      init();
+      startGameBgm();
+      startCustomerLoop();
+      setFeedback("Cafe open.");
+      syncPlayerIdInputs();
+    }
+
+    function init() {
+      if (gameState.initialized) {
+        return;
+      }
+
+      gameState.initialized = true;
+      boardElement.style.setProperty("--grid-count", String(BOARD_SIZE));
+      renderCategoryStrip();
+      renderBoardStatus();
+      renderBoard();
+      renderRoundTimer();
+      renderCoins();
+      renderCustomerArea();
+      renderFeedback();
+      bindCategorySwipe();
+    }
+
+    function startGame() {
+      closeLeaderboardOverlay();
+      startScreenElement.classList.add("is-hidden");
+      gameShellElement.classList.remove("is-hidden");
+      init();
+      startGameBgm();
+      resetRunState();
+      if (gameState.tutorialDismissed) {
+        startCustomerLoop();
+        setFeedback("Cafe open.");
+        return;
+      }
+
+      startTutorial();
+    }
+
+    function stopCustomerLoop() {
+      if (gameState.timerLoop) {
+        window.clearInterval(gameState.timerLoop);
+        gameState.timerLoop = null;
+      }
+
+      gameState.customerSlots.forEach((slot) => {
+        clearTimeout(slot.enterTimer);
+        clearTimeout(slot.nextTimer);
+      });
+    }
+
+    function startCustomerLoop() {
+      stopCustomerLoop();
+      gameState.roundComplete = false;
+      gameState.roundSubmitted = false;
+      hideRoundEndOverlay();
+      renderRoundEndOverlay();
+      startRoundTimer();
+
+      const initialArrivalPlan = buildInitialArrivalPlan();
+      for (let slotIndex = 0; slotIndex < CUSTOMER_SLOT_COUNT; slotIndex += 1) {
+        scheduleCustomerArrival(slotIndex, initialArrivalPlan[slotIndex], { skipRender: true });
+      }
+
+      gameState.timerLoop = window.setInterval(updateCustomerTimers, TIMER_TICK_MS);
+      renderCustomerArea();
+    }
+
+    function startTutorial() {
+      if (gameState.tutorialDismissed) {
+        startCustomerLoop();
+        setFeedback("Cafe open.");
+        return;
+      }
+
+      stopCustomerLoop();
+      resetRoundTimer();
+      gameState.roundComplete = false;
+      gameState.roundSubmitted = false;
+      hideRoundEndOverlay();
+      gameState.board = createEmptyBoard();
+      gameState.customerSlots = Array.from({ length: CUSTOMER_SLOT_COUNT }, (_, slotIndex) => createEmptyCustomerSlot(slotIndex));
+      gameState.selectedCustomerSlot = 0;
+      gameState.selectedCategory = "drinks";
+      gameState.tutorial = {
+        active: true,
+        stepIndex: 0,
+        slotIndex: 0,
+        generatedDrinks: 0,
+        generatedBakery: 0
+      };
+
+      const slot = gameState.customerSlots[0];
+      slot.customer = { ...CUSTOMERS[0], avatarSrc: CUSTOMER_AVATAR_SRCS[0] };
+      slot.order = {
+        requests: [
+          { category: "drinks", level: 1, quantity: 1, remaining: 1 },
+          { category: "bakery", level: 2, quantity: 1, remaining: 1 }
+        ],
+        rewardCoins: getItemDef("drinks", 1).reward + getItemDef("bakery", 2).reward + 6
+      };
+      slot.stayDurationMs = 600000;
+      slot.leaveAt = Date.now() + slot.stayDurationMs;
+
+      renderCategoryStrip();
+      renderBoardStatus();
+      renderBoard();
+      renderRoundTimer();
+      renderCustomerArea();
+      renderTutorialOverlay();
+      setFeedback("Tutorial started.");
+    }
+
+    function endTutorial(skipped = false) {
+      gameState.tutorialDismissed = true;
+
+      gameState.tutorial = null;
+      tutorialOverlayElement.classList.add("is-hidden");
+      tutorialOverlayElement.innerHTML = "";
+      gameState.board = createEmptyBoard();
+      gameState.customerSlots = Array.from({ length: CUSTOMER_SLOT_COUNT }, (_, slotIndex) => createEmptyCustomerSlot(slotIndex));
+      gameState.selectedCustomerSlot = 0;
+      gameState.selectedCategory = "drinks";
+
+      renderCategoryStrip();
+      renderBoardStatus();
+      renderBoard();
+      renderCustomerArea();
+      startCustomerLoop();
+      setFeedback(skipped ? "Tutorial skipped." : "Cafe open.");
+    }
+
+    function createEmptyBoard() {
+      return Array.from({ length: TOTAL_CELLS }, () => null);
+    }
+
+    function createEmptyCustomerSlot(slotIndex) {
+      return {
+        slotIndex,
+        customer: null,
+        order: null,
+        servedItems: [],
+        entering: false,
+        completing: false,
+        arrivalDelayMs: 0,
+        arrivalAt: null,
+        stayDurationMs: 0,
+        leaveAt: null,
+        key: null,
+        enterTimer: null,
+        nextTimer: null
+      };
+    }
+
+    function getCategoryDef(categoryId) {
+      return CATEGORY_DEFS.find((category) => category.id === categoryId);
+    }
+
+    function getItemDef(categoryOrItem, maybeLevel) {
+      if (typeof categoryOrItem === "object") {
+        return ITEM_CHAINS[categoryOrItem.category].find((item) => item.level === categoryOrItem.level);
+      }
+
+      return ITEM_CHAINS[categoryOrItem].find((item) => item.level === maybeLevel);
+    }
+
+    function getItemAssetSrc(categoryId, level) {
+      const categoryAssets = ITEM_ASSETS[categoryId];
+      return categoryAssets ? categoryAssets[level] || null : null;
+    }
+
+    function createItem(category, level) {
+      const def = getItemDef(category, level);
+      return {
+        category: def.category,
+        id: def.id,
+        level: def.level
+      };
+    }
+
+    function getCategoryOrder(categoryId) {
+      return CATEGORY_DEFS.findIndex((category) => category.id === categoryId);
+    }
+
+    function getSelectedCategory() {
+      return getCategoryDef(gameState.selectedCategory);
+    }
+
+    function getTutorialRequestRemaining(category, level) {
+      const tutorialSlot = gameState.tutorial ? gameState.customerSlots[gameState.tutorial.slotIndex] : null;
+      const request = tutorialSlot && tutorialSlot.order
+        ? tutorialSlot.order.requests.find((item) => item.category === category && item.level === level)
+        : null;
+      return request ? request.remaining : 0;
+    }
+
+    function isTutorialOrderComplete() {
+      const tutorialSlot = gameState.tutorial ? gameState.customerSlots[gameState.tutorial.slotIndex] : null;
+      return Boolean(
+        tutorialSlot &&
+        tutorialSlot.order &&
+        tutorialSlot.order.requests.every((request) => request.remaining === 0)
+      );
+    }
+
+    function getTutorialLockedCategory() {
+      if (!gameState.tutorial || !gameState.tutorial.active) {
+        return null;
+      }
+
+      if (gameState.tutorial.stepIndex >= 1 && gameState.tutorial.stepIndex <= 2) {
+        return "drinks";
+      }
+
+      if (gameState.tutorial.stepIndex >= 3 && gameState.tutorial.stepIndex <= 6) {
+        return "bakery";
+      }
+
+      return null;
+    }
+
+    function renderTutorialOverlay() {
+      if (!gameState.tutorial || !gameState.tutorial.active) {
+        tutorialOverlayElement.classList.add("is-hidden");
+        tutorialOverlayElement.innerHTML = "";
+        return;
+      }
+
+      const step = TUTORIAL_STEPS[gameState.tutorial.stepIndex];
+      tutorialOverlayElement.classList.remove("is-hidden");
+      tutorialOverlayElement.innerHTML = `
+        <div class="tutorial-slot-spacer" aria-hidden="true"></div>
+        <div class="tutorial-card-wrap">
+          <div class="tutorial-card">
+            <div class="tutorial-top">
+              <div class="tutorial-step">Step ${Math.min(gameState.tutorial.stepIndex + 1, TUTORIAL_STEPS.length)} / ${TUTORIAL_STEPS.length}</div>
+              <button class="tutorial-skip" type="button">Skip</button>
+            </div>
+            <h3 class="tutorial-title">${step.title}</h3>
+            <p class="tutorial-body">${step.body}</p>
+            ${step.actionLabel ? `
+              <div class="tutorial-actions">
+                <button class="tutorial-next" type="button">${step.actionLabel}</button>
+              </div>
+            ` : ""}
+          </div>
+        </div>
+      `;
+
+      tutorialOverlayElement.querySelector(".tutorial-skip").addEventListener("click", () => {
+        endTutorial(true);
+      });
+
+      const nextButton = tutorialOverlayElement.querySelector(".tutorial-next");
+      if (nextButton) {
+        nextButton.addEventListener("click", handleTutorialAction);
+      }
+    }
+
+    function handleTutorialAction() {
+      if (!gameState.tutorial || !gameState.tutorial.active) {
+        return;
+      }
+
+      if (gameState.tutorial.stepIndex === 0) {
+        gameState.tutorial.stepIndex = 1;
+        renderTutorialOverlay();
+        setFeedback("Tutorial: brew the Lv1 coffee.");
+        return;
+      }
+
+      if (gameState.tutorial.stepIndex === TUTORIAL_STEPS.length - 1) {
+        endTutorial(false);
+      }
+    }
+
+    function maybeAdvanceTutorial() {
+      if (!gameState.tutorial || !gameState.tutorial.active) {
+        return;
+      }
+
+      while (true) {
+        const step = TUTORIAL_STEPS[gameState.tutorial.stepIndex];
+        if (!step || !step.condition || !step.condition()) {
+          break;
+        }
+
+        gameState.tutorial.stepIndex += 1;
+      }
+
+      renderTutorialOverlay();
+    }
+
+    function getRandomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function shuffleArray(list) {
+      const clone = [...list];
+
+      for (let index = clone.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [clone[index], clone[swapIndex]] = [clone[swapIndex], clone[index]];
+      }
+
+      return clone;
+    }
+
+    function buildInitialArrivalPlan() {
+      const seatOrder = shuffleArray(Array.from({ length: CUSTOMER_SLOT_COUNT }, (_, index) => index));
+      const plan = Array(CUSTOMER_SLOT_COUNT).fill(0);
+      let elapsed = getRandomInt(900, 2100);
+
+      seatOrder.forEach((slotIndex, orderIndex) => {
+        if (orderIndex > 0) {
+          elapsed += getRandomInt(1700, 4600);
+        }
+
+        plan[slotIndex] = elapsed + getRandomInt(0, 900);
+      });
+
+      return plan;
+    }
+
+    function getNextArrivalDelayMs() {
+      const roll = Math.random();
+
+      if (roll < 0.35) {
+        return getRandomInt(2200, 4200);
+      }
+
+      if (roll < 0.8) {
+        return getRandomInt(4200, 7600);
+      }
+
+      return getRandomInt(7600, 11200);
+    }
+
+    function getCustomerStayDurationMs(order) {
+      const totalDrinks = order.requests.reduce((sum, request) => sum + request.quantity, 0);
+      return (18 + (totalDrinks * 6) + getRandomInt(4, 9)) * 1000;
+    }
+
+    function formatCountdown(ms) {
+      const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    function resetRoundTimer() {
+      gameState.roundActive = false;
+      gameState.roundEndsAt = null;
+      gameState.roundRemainingMs = ROUND_DURATION_MS;
+      renderRoundTimer();
+    }
+
+    function startRoundTimer() {
+      gameState.roundActive = true;
+      gameState.roundEndsAt = Date.now() + ROUND_DURATION_MS;
+      gameState.roundRemainingMs = ROUND_DURATION_MS;
+      renderRoundTimer();
+    }
+
+    function updateRoundTimer(now = Date.now()) {
+      if (!gameState.roundActive || !gameState.roundEndsAt) {
+        return;
+      }
+
+      gameState.roundRemainingMs = Math.max(0, gameState.roundEndsAt - now);
+      if (gameState.roundRemainingMs === 0) {
+        gameState.roundActive = false;
+        gameState.roundEndsAt = null;
+        renderRoundTimer();
+        handleRoundEnd();
+        return;
+      }
+
+      renderRoundTimer();
+    }
+
+    function renderRoundTimer() {
+      if (!roundTimerValueElement || !roundTimerPanelElement) {
+        return;
+      }
+
+      roundTimerValueElement.textContent = formatCountdown(gameState.roundRemainingMs);
+      roundTimerPanelElement.classList.toggle("is-idle", !gameState.roundActive);
+      roundTimerPanelElement.classList.toggle("is-warning", gameState.roundActive && gameState.roundRemainingMs <= 30000);
+    }
+
+    function getTimerProgressPercent(remainingMs, totalMs) {
+      if (!totalMs || totalMs <= 0) {
+        return 0;
+      }
+
+      const clampedRemaining = Math.max(0, Math.min(remainingMs, totalMs));
+      return (clampedRemaining / totalMs) * 100;
+    }
+
+    function renderTimerBar(progressPercent, timerClass = "", ariaLabel = "") {
+      const safeProgress = Math.max(0, Math.min(100, progressPercent));
+
+      return `
+        <div
+          class="timer-pill ${timerClass}"
+          style="--timer-progress:${safeProgress}%;"
+          ${ariaLabel ? `aria-label="${ariaLabel}"` : ""}
+        >
+          <div class="timer-fill"></div>
+        </div>
+      `;
+    }
+
+    function renderCategoryStrip() {
+      if (!categoryStripElement) {
+        return;
+      }
+
+      categoryStripElement.innerHTML = CATEGORY_DEFS.map((category) => `
+        <button
+          class="category-chip ${gameState.selectedCategory === category.id ? "active" : ""}"
+          type="button"
+          data-category="${category.id}"
+        >
+          <div class="category-icon">
+            ${renderGeneratorVisual(category.id)}
+          </div>
+          <div class="category-label">${category.label}</div>
+        </button>
+      `).join("");
+
+      categoryStripElement.querySelectorAll(".category-chip").forEach((button) => {
+        button.addEventListener("click", () => {
+          selectCategory(button.dataset.category);
+        });
+      });
+    }
+
+    function renderBoardStatus() {
+      if (!boardStatusElement) {
+        return;
+      }
+
+      const category = getSelectedCategory();
+      boardStatusElement.innerHTML = `
+        <div class="board-status-pill">
+          <div class="board-status-icon">
+            ${renderGeneratorVisual(category.id)}
+          </div>
+          <div class="board-status-label">${category.label}</div>
+        </div>
+      `;
+    }
+
+    function getCategoryIndex(categoryId) {
+      return CATEGORY_DEFS.findIndex((category) => category.id === categoryId);
+    }
+
+    function shiftSelectedCategory(step) {
+      const currentIndex = getCategoryIndex(gameState.selectedCategory);
+      const nextIndex = (currentIndex + step + CATEGORY_DEFS.length) % CATEGORY_DEFS.length;
+      selectCategory(CATEGORY_DEFS[nextIndex].id);
+    }
+
+    function selectCategory(categoryId) {
+      const lockedCategory = getTutorialLockedCategory();
+      if (lockedCategory && categoryId !== lockedCategory) {
+        setFeedback(`Tutorial: choose ${getCategoryDef(lockedCategory).label}.`);
+        return;
+      }
+
+      if (!categoryId || categoryId === gameState.selectedCategory) {
+        return;
+      }
+
+      gameState.selectedCategory = categoryId;
+      renderCategoryStrip();
+      renderBoardStatus();
+      renderBoard();
+      maybeAdvanceTutorial();
+      setFeedback(`${getCategoryDef(categoryId).label} selected.`);
+    }
+
+    function bindCategorySwipe() {
+      if (!playPanelElement) {
+        return;
+      }
+
+      playPanelElement.addEventListener("touchstart", onCategorySwipeStart, { passive: true });
+      playPanelElement.addEventListener("touchmove", onCategorySwipeMove, { passive: false });
+      playPanelElement.addEventListener("touchend", clearCategorySwipe, { passive: true });
+      playPanelElement.addEventListener("touchcancel", clearCategorySwipe, { passive: true });
+    }
+
+    function onCategorySwipeStart(event) {
+      if (event.touches.length !== 1) {
+        gameState.categorySwipe = null;
+        return;
+      }
+
+      if (event.target.closest(".item-card, .generator-btn, .category-chip")) {
+        gameState.categorySwipe = null;
+        return;
+      }
+
+      const touch = event.touches[0];
+      gameState.categorySwipe = {
+        startX: touch.clientX,
+        startY: touch.clientY,
+        changed: false
+      };
+    }
+
+    function onCategorySwipeMove(event) {
+      if (!gameState.categorySwipe || gameState.drag || event.touches.length !== 1) {
+        return;
+      }
+
+      const touch = event.touches[0];
+      const deltaX = touch.clientX - gameState.categorySwipe.startX;
+      const deltaY = touch.clientY - gameState.categorySwipe.startY;
+
+      if (Math.abs(deltaX) < CATEGORY_SWIPE_THRESHOLD || Math.abs(deltaX) <= Math.abs(deltaY)) {
+        return;
+      }
+
+      event.preventDefault();
+      gameState.categorySwipe.changed = true;
+      shiftSelectedCategory(deltaX < 0 ? 1 : -1);
+      gameState.categorySwipe = null;
+    }
+
+    function clearCategorySwipe() {
+      gameState.categorySwipe = null;
+    }
+
+    function renderProgressList() {
+      if (!progressListElement) {
+        return;
+      }
+
+      progressListElement.innerHTML = ITEMS.map((item) => `
+        <div class="progress-item">
+          <div class="mini-token" style="background:${item.color};">${item.level}</div>
+          <div class="progress-meta">
+            <strong>${item.name}</strong>
+            <span>${getCategoryDef(item.category).label} Lv${item.level}</span>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderBoard() {
+      boardElement.innerHTML = "";
+      const selectedCategory = getSelectedCategory();
+
+      for (let index = 0; index < TOTAL_CELLS; index += 1) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.dataset.cellIndex = String(index);
+
+        if (index === CENTER_INDEX) {
+          cell.classList.add("generator-cell");
+          cell.innerHTML = `
+            <button
+              class="generator-btn"
+              type="button"
+              aria-label="Generate ${selectedCategory.label.toLowerCase()}"
+              style="--generator-color:${selectedCategory.chipBottom};"
+            >
+              <div class="generator-inner">
+                ${renderGeneratorVisual(selectedCategory.id)}
+              </div>
+            </button>
+          `;
+
+          cell.querySelector(".generator-btn").addEventListener("click", handleGeneratorClick);
+        } else if (gameState.board[index]) {
+          const item = gameState.board[index];
+          cell.innerHTML = renderItemCard(item, index);
+          cell.querySelector(".item-card").addEventListener("pointerdown", startDrag);
+        }
+
+        boardElement.appendChild(cell);
+      }
+    }
+
+    function renderGeneratorVisual(categoryId) {
+      const assetSrc = GENERATOR_ASSETS[categoryId];
+      if (assetSrc) {
+        return `<img class="generator-asset" src="${assetSrc}" alt="" draggable="false" />`;
+      }
+
+      return `
+        <div class="machine">
+          <div class="brew-dot"></div>
+        </div>
+      `;
+    }
+
+    function renderItemCard(item, index, options = {}) {
+      const def = getItemDef(item);
+      const category = getCategoryDef(item.category);
+      const isDragOrigin = !options.ghost && gameState.drag && gameState.drag.fromIndex === index;
+      const assetSrc = getItemAssetSrc(item.category, item.level);
+
+      return `
+        <div
+          class="item-card ${isDragOrigin ? "drag-origin" : ""}"
+          data-index="${index}"
+          style="--item-color:${def.color}; --foam-color:${def.foam}; --spark-opacity:${def.spark}; --level-badge-color:${category.levelColor}; --level-badge-text:${category.levelTextColor};"
+        >
+          <div class="cup-wrap">
+            ${assetSrc
+              ? `<img class="item-art" src="${assetSrc}" alt="" draggable="false" />`
+              : `
+                <div class="cup">
+                  <div class="cup-mark"></div>
+                </div>
+                <div class="cup-spark"></div>
+              `}
+            <div class="item-level level-badge">${item.level}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCustomerAvatar(customer) {
+      return `
+        <img
+          class="customer-avatar"
+          src="${customer.avatarSrc || CUSTOMER_AVATAR_SRCS[0]}"
+          alt="${customer.name}"
+          draggable="false"
+        />
+      `;
+    }
+
+    function renderCoins() {
+      coinValueElement.textContent = String(gameState.coins);
+    }
+
+    function renderFeedback() {
+      if (!feedbackElement) {
+        return;
+      }
+
+      feedbackElement.textContent = gameState.feedback;
+    }
+
+    function renderCustomerArea() {
+      renderCustomerQueue();
+    }
+
+    function renderCustomerQueue() {
+      customerQueueElement.innerHTML = gameState.customerSlots.map((slot, slotIndex) => {
+        const isSelected = slotIndex === gameState.selectedCustomerSlot;
+
+        if (!slot.customer || !slot.order) {
+          return `
+            <button
+              class="queue-slot queue-slot--empty ${isSelected ? "selected" : ""}"
+              type="button"
+              data-slot-index="${slotIndex}"
+            >
+              <div class="slot-copy"></div>
+            </button>
+          `;
+        }
+
+        const customer = slot.customer;
+        const order = slot.order;
+        const remainingLeaveMs = slot.leaveAt ? Math.max(0, slot.leaveAt - Date.now()) : 0;
+        const leaveCountdown = slot.leaveAt ? formatCountdown(remainingLeaveMs) : "00:00";
+        const timerClass = slot.completing
+          ? "success"
+          : (remainingLeaveMs <= 10000 ? "warning" : "");
+
+        return `
+          <button
+            class="queue-slot ${isSelected ? "selected" : ""} ${slot.entering ? "entering" : ""} ${slot.completing ? "completing" : ""}"
+            type="button"
+            data-slot-index="${slotIndex}"
+          >
+            <div class="slot-top">
+              ${renderTimerBar(
+                slot.completing ? 100 : getTimerProgressPercent(remainingLeaveMs, slot.stayDurationMs || remainingLeaveMs || 1),
+                timerClass,
+                slot.completing ? "Order complete" : leaveCountdown
+              )}
+            </div>
+
+            <div class="slot-copy">
+              <div class="order-stack">
+                ${order.requests.map((request) => renderOrderBubbleToken(request)).join("")}
+              </div>
+
+              <div class="character-stage">
+                <div class="character-shadow"></div>
+                ${renderCustomerAvatar(customer)}
+              </div>
+
+              ${slot.servedItems.length > 0
+                ? `<div class="served-strip">${slot.servedItems.map((item) => renderServedItemChip(item)).join("")}</div>`
+                : ""}
+            </div>
+          </button>
+        `;
+      }).join("");
+
+      customerQueueElement.querySelectorAll(".queue-slot").forEach((slotButton) => {
+        slotButton.addEventListener("click", () => {
+          selectCustomerSlot(Number(slotButton.dataset.slotIndex));
+        });
+      });
+    }
+
+    function renderServedItemChip(item) {
+      const def = getItemDef(item);
+      const assetSrc = getItemAssetSrc(item.category, item.level);
+      return `
+        <div class="served-chip" style="--item-color:${def.color}; --foam-color:${def.foam};">
+          ${assetSrc
+            ? `<img class="served-image" src="${assetSrc}" alt="" draggable="false" />`
+            : `<div class="mini-cup"></div>`}
+          <span>${def.short} Lv${item.level}</span>
+        </div>
+      `;
+    }
+
+    function renderOrderBubbleToken(request) {
+      const def = getItemDef(request.category, request.level);
+      const category = getCategoryDef(request.category);
+      const assetSrc = getItemAssetSrc(request.category, request.level);
+      return `
+        <div class="order-token-card" style="--item-color:${def.color}; --foam-color:${def.foam}; --level-badge-color:${category.levelColor}; --level-badge-text:${category.levelTextColor};">
+          <div class="order-token-visual">
+            ${assetSrc
+              ? `<img class="order-token-image" src="${assetSrc}" alt="" draggable="false" />`
+              : `<div class="order-token-cup"></div>`}
+            <div class="order-token-level level-badge">${request.level}</div>
+          </div>
+          <div class="order-token-count">${request.remaining}</div>
+        </div>
+      `;
+    }
+
+    function setFeedback(message) {
+      gameState.feedback = message;
+      renderFeedback();
+    }
+
+    function selectCustomerSlot(slotIndex) {
+      gameState.selectedCustomerSlot = slotIndex;
+      renderCustomerArea();
+      const slot = getCustomerSlot(slotIndex);
+      if (slot.customer) {
+        setFeedback(`Serving ${slot.customer.name}.`);
+      } else {
+        setFeedback(`Seat ${slotIndex + 1}. ${formatCountdown((slot.arrivalAt || Date.now()) - Date.now())}.`);
+      }
+    }
+
+    // Random item generation stays separate so drop rates can be tuned later.
+    function generateRandomItemLevel() {
+      const roll = Math.random();
+      if (roll < 0.58) {
+        return 1;
+      }
+      if (roll < 0.86) {
+        return 2;
+      }
+      return 3;
+    }
+
+    function getEmptyBoardSlots() {
+      const open = [];
+
+      for (let index = 0; index < TOTAL_CELLS; index += 1) {
+        if (index !== CENTER_INDEX && !gameState.board[index]) {
+          open.push(index);
+        }
+      }
+
+      return open;
+    }
+
+    function handleGeneratorClick() {
+      const emptySlots = getEmptyBoardSlots();
+      if (emptySlots.length === 0) {
+        setFeedback("Board full. Merge or serve an item.");
+        return;
+      }
+
+      const slotIndex = emptySlots[Math.floor(Math.random() * emptySlots.length)];
+      const tutorial = gameState.tutorial;
+      let level = generateRandomItemLevel();
+      const categoryId = gameState.selectedCategory;
+
+      if (tutorial && tutorial.active) {
+        if (tutorial.stepIndex === 1) {
+          if (categoryId !== "drinks") {
+            setFeedback("Tutorial: switch to Drinks first.");
+            return;
+          }
+          level = 1;
+          tutorial.generatedDrinks += 1;
+        } else if (tutorial.stepIndex === 4) {
+          if (categoryId !== "bakery") {
+            setFeedback("Tutorial: switch to Bakery first.");
+            return;
+          }
+          level = 1;
+          tutorial.generatedBakery += 1;
+        } else {
+          setFeedback(TUTORIAL_STEPS[tutorial.stepIndex].body);
+          return;
+        }
+      }
+
+      const itemDef = getItemDef(categoryId, level);
+      gameState.board[slotIndex] = createItem(categoryId, level);
+
+      setFeedback(`${itemDef.name} Lv${level} appeared on the board.`);
+      renderBoard();
+      maybeAdvanceTutorial();
+    }
+
+    // Merge rules are isolated so future item trees can replace this function cleanly.
+    function canMergeItems(sourceItem, targetItem) {
+      return Boolean(
+        sourceItem &&
+        targetItem &&
+        sourceItem.category === targetItem.category &&
+        sourceItem.id === targetItem.id &&
+        sourceItem.level === targetItem.level &&
+        sourceItem.level < MAX_ITEM_LEVEL
+      );
+    }
+
+    function mergeItems(sourceIndex, targetIndex) {
+      const sourceItem = gameState.board[sourceIndex];
+      const targetItem = gameState.board[targetIndex];
+
+      if (!canMergeItems(sourceItem, targetItem)) {
+        return false;
+      }
+
+      const upgradedLevel = sourceItem.level + 1;
+      const upgradedDef = getItemDef(sourceItem.category, upgradedLevel);
+      gameState.board[targetIndex] = createItem(sourceItem.category, upgradedLevel);
+      gameState.board[sourceIndex] = null;
+      setFeedback(`Merged into ${upgradedDef.name} Lv${upgradedLevel}.`);
+      maybeAdvanceTutorial();
+      return true;
+    }
+
+    function moveItem(sourceIndex, targetIndex) {
+      gameState.board[targetIndex] = gameState.board[sourceIndex];
+      gameState.board[sourceIndex] = null;
+      setFeedback("Item moved.");
+    }
+
+    function handleBoardDrop(sourceIndex, targetIndex) {
+      if (targetIndex === sourceIndex || targetIndex === CENTER_INDEX) {
+        return;
+      }
+
+      const sourceItem = gameState.board[sourceIndex];
+      const targetItem = gameState.board[targetIndex];
+
+      if (!sourceItem) {
+        return;
+      }
+
+      if (!targetItem) {
+        moveItem(sourceIndex, targetIndex);
+        return;
+      }
+
+      if (!mergeItems(sourceIndex, targetIndex)) {
+        if (
+          sourceItem.level === MAX_ITEM_LEVEL &&
+          targetItem.level === MAX_ITEM_LEVEL &&
+          sourceItem.id === targetItem.id &&
+          sourceItem.category === targetItem.category
+        ) {
+          setFeedback(`${getItemDef(sourceItem).name} is already at max level.`);
+          return;
+        }
+
+        setFeedback("Only identical items of the same level can merge.");
+      }
+    }
+
+    function buildCustomerOrder() {
+      const requestCount = Math.random() < 0.55 ? 1 : 2;
+      const maxLevel = getUnlockedOrderLevel();
+      const categories = shuffleArray(CATEGORY_DEFS.map((category) => category.id)).slice(0, requestCount);
+      const requests = categories
+        .map((category) => {
+          const level = getWeightedOrderLevel(maxLevel);
+          const quantity = Math.random() < 0.72 ? 1 : 2;
+
+          return {
+            category,
+            level,
+            quantity,
+            remaining: quantity
+          };
+        })
+        .sort((a, b) => {
+          const categoryDiff = getCategoryOrder(a.category) - getCategoryOrder(b.category);
+          return categoryDiff !== 0 ? categoryDiff : a.level - b.level;
+        });
+
+      return {
+        requests,
+        rewardCoins: requests.reduce((total, request) => total + (getItemDef(request.category, request.level).reward * request.quantity), 6)
+      };
+    }
+
+    function getUnlockedOrderLevel() {
+      if (gameState.servedCustomers >= 6) {
+        return 5;
+      }
+      if (gameState.servedCustomers >= 4) {
+        return 4;
+      }
+      if (gameState.servedCustomers >= 2) {
+        return 3;
+      }
+      return 2;
+    }
+
+    function getWeightedOrderLevel(maxLevel) {
+      const options = [];
+
+      for (let level = 1; level <= maxLevel; level += 1) {
+        const weight = (maxLevel + 2) - level;
+        for (let count = 0; count < weight; count += 1) {
+          options.push(level);
+        }
+      }
+
+      return options[Math.floor(Math.random() * options.length)];
+    }
+
+    function spawnCustomerIntoSlot(slotIndex, options = {}) {
+      const slot = gameState.customerSlots[slotIndex];
+      clearTimeout(slot.enterTimer);
+      clearTimeout(slot.nextTimer);
+
+      const seed = gameState.customerSeed;
+      const customer = CUSTOMERS[seed % CUSTOMERS.length];
+      const avatarSrc = CUSTOMER_AVATAR_SRCS[seed % CUSTOMER_AVATAR_SRCS.length];
+      const order = buildCustomerOrder();
+      const stayDurationMs = getCustomerStayDurationMs(order);
+      slot.customer = { ...customer, avatarSrc };
+      slot.order = order;
+      slot.servedItems = [];
+      slot.entering = true;
+      slot.completing = false;
+      slot.arrivalDelayMs = 0;
+      slot.arrivalAt = null;
+      slot.stayDurationMs = stayDurationMs;
+      slot.leaveAt = Date.now() + stayDurationMs;
+      slot.key = `${Date.now()}-${gameState.customerSeed}-${slotIndex}`;
+      gameState.customerSeed += 1;
+
+      if (!options.skipRender) {
+        renderCustomerArea();
+      }
+
+      const currentKey = slot.key;
+      slot.enterTimer = setTimeout(() => {
+        if (slot.key === currentKey) {
+          slot.entering = false;
+          renderCustomerArea();
+        }
+      }, 700);
+    }
+
+    function scheduleCustomerArrival(slotIndex, delayMs = getNextArrivalDelayMs(), options = {}) {
+      const slot = gameState.customerSlots[slotIndex];
+      clearTimeout(slot.enterTimer);
+      clearTimeout(slot.nextTimer);
+
+      slot.customer = null;
+      slot.order = null;
+      if (!options.preserveServedItems) {
+        slot.servedItems = [];
+      }
+      slot.entering = false;
+      slot.completing = false;
+      slot.arrivalDelayMs = delayMs;
+      slot.leaveAt = null;
+      slot.stayDurationMs = 0;
+      slot.arrivalAt = Date.now() + delayMs;
+      slot.key = null;
+
+      if (!options.skipRender) {
+        renderCustomerArea();
+      }
+    }
+
+    function handleCustomerDeparture(slotIndex) {
+      const slot = gameState.customerSlots[slotIndex];
+      if (!slot || !slot.customer || slot.completing) {
+        return;
+      }
+
+      scheduleCustomerArrival(slotIndex, getNextArrivalDelayMs(), { skipRender: true, preserveServedItems: true });
+    }
+
+    function updateCustomerTimers() {
+      const now = Date.now();
+      let latestFeedback = null;
+
+      updateRoundTimer(now);
+      if (gameState.roundComplete) {
+        return;
+      }
+
+      for (let slotIndex = 0; slotIndex < gameState.customerSlots.length; slotIndex += 1) {
+        const slot = gameState.customerSlots[slotIndex];
+
+        if (!slot.customer && slot.arrivalAt && now >= slot.arrivalAt) {
+          spawnCustomerIntoSlot(slotIndex, { skipRender: true });
+          latestFeedback = `${gameState.customerSlots[slotIndex].customer.name} arrived.`;
+          continue;
+        }
+
+        if (slot.customer && slot.leaveAt && !slot.completing && now >= slot.leaveAt) {
+          const leavingName = slot.customer.name;
+          handleCustomerDeparture(slotIndex);
+          latestFeedback = `${leavingName} left.`;
+        }
+      }
+
+      renderCustomerArea();
+
+      if (latestFeedback) {
+        setFeedback(latestFeedback);
+      }
+    }
+
+    function getCustomerSlot(slotIndex) {
+      return gameState.customerSlots[slotIndex] || null;
+    }
+
+    // Order handling is isolated so each slot keeps its own order progress.
+    function giveItemToCustomer(sourceIndex, slotIndex) {
+      const slot = getCustomerSlot(slotIndex);
+
+      if (!slot || !slot.customer || !slot.order) {
+        setFeedback("No guest here.");
+        return false;
+      }
+
+      if (slot.completing) {
+        setFeedback("That order is already complete. Wait for the next arrival.");
+        return false;
+      }
+
+      const item = gameState.board[sourceIndex];
+      if (!item) {
+        return false;
+      }
+
+      gameState.selectedCustomerSlot = slotIndex;
+
+      const matchingRequest = slot.order.requests.find((request) =>
+        request.category === item.category &&
+        request.level === item.level &&
+        request.remaining > 0
+      );
+      if (!matchingRequest) {
+        const remainingOrders = slot.order.requests
+          .filter((request) => request.remaining > 0)
+          .map((request) => `${getItemDef(request.category, request.level).name} Lv${request.level}`)
+          .join(", ");
+
+        setFeedback(
+          remainingOrders
+            ? `${slot.customer.name} needs ${remainingOrders}.`
+            : `${slot.customer.name} is done.`
+        );
+        return false;
+      }
+
+      matchingRequest.remaining -= 1;
+      slot.servedItems.push({ ...item });
+      gameState.board[sourceIndex] = null;
+
+      setFeedback(`${getItemDef(item).name} served to ${slot.customer.name}.`);
+      renderBoard();
+      renderCustomerArea();
+      maybeAdvanceTutorial();
+
+      if (slot.order.requests.every((request) => request.remaining === 0)) {
+        completeCustomerOrder(slot.slotIndex);
+      }
+
+      return true;
+    }
+
+    function completeCustomerOrder(slotIndex) {
+      const slot = gameState.customerSlots[slotIndex];
+      if (!slot || slot.completing) {
+        return;
+      }
+
+      slot.completing = true;
+
+      if (gameState.tutorial && gameState.tutorial.active) {
+        renderCustomerArea();
+        setFeedback(`${slot.customer.name} done.`);
+        maybeAdvanceTutorial();
+        return;
+      }
+
+      gameState.coins += slot.order.rewardCoins;
+      gameState.servedCustomers += 1;
+
+      renderCoins();
+      renderCustomerArea();
+      setFeedback(`${slot.customer.name} done. +${slot.order.rewardCoins} coins.`);
+
+      slot.nextTimer = setTimeout(() => {
+        const completedName = slot.customer ? slot.customer.name : "The customer";
+        scheduleCustomerArrival(slotIndex, getNextArrivalDelayMs(), { preserveServedItems: true });
+        setFeedback(`${completedName} left happy.`);
+      }, EXIT_DELAY_AFTER_COMPLETE_MS);
+    }
+
+    function clearCustomerDropHighlights() {
+      customerQueueElement.querySelectorAll(".drop-active").forEach((element) => {
+        element.classList.remove("drop-active");
+      });
+    }
+
+    function getDroppableCustomerSlotElement(element) {
+      const queueSlot = element && element.closest(".queue-slot[data-slot-index]");
+      if (!queueSlot) {
+        return null;
+      }
+
+      const slotIndex = Number(queueSlot.dataset.slotIndex);
+      const slot = gameState.customerSlots[slotIndex];
+      if (!slot || !slot.customer || slot.completing) {
+        return null;
+      }
+
+      return queueSlot;
+    }
+
+    function startDrag(event) {
+      if (event.button !== undefined && event.button !== 0) {
+        return;
+      }
+
+      const index = Number(event.currentTarget.dataset.index);
+      const item = gameState.board[index];
+      if (!item) {
+        return;
+      }
+
+      event.preventDefault();
+      gameState.drag = { fromIndex: index, item };
+
+      document.body.classList.add("dragging");
+      dragGhostElement.innerHTML = renderItemCard(item, index, { ghost: true });
+      dragGhostElement.classList.add("visible");
+      updateGhostPosition(event.clientX, event.clientY);
+      renderBoard();
+
+      document.addEventListener("pointermove", onPointerMove);
+      document.addEventListener("pointerup", endDrag);
+      document.addEventListener("pointercancel", endDrag);
+    }
+
+    function onPointerMove(event) {
+      if (!gameState.drag) {
+        return;
+      }
+
+      updateGhostPosition(event.clientX, event.clientY);
+      const hoveredElement = document.elementFromPoint(event.clientX, event.clientY);
+      clearCustomerDropHighlights();
+      const dropSlotElement = getDroppableCustomerSlotElement(hoveredElement);
+      if (dropSlotElement) {
+        dropSlotElement.classList.add("drop-active");
+      }
+    }
+
+    function endDrag(event) {
+      if (!gameState.drag) {
+        cleanupDrag();
+        return;
+      }
+
+      const hoveredElement = document.elementFromPoint(event.clientX, event.clientY);
+      const overCell = hoveredElement && hoveredElement.closest("[data-cell-index]");
+      const overCustomerSlot = hoveredElement && hoveredElement.closest(".queue-slot[data-slot-index]");
+      const sourceIndex = gameState.drag.fromIndex;
+      const dropSlotElement = getDroppableCustomerSlotElement(hoveredElement);
+
+      if (dropSlotElement) {
+        giveItemToCustomer(sourceIndex, Number(dropSlotElement.dataset.slotIndex));
+      } else if (overCustomerSlot) {
+        const slotIndex = Number(overCustomerSlot.dataset.slotIndex);
+        const slot = gameState.customerSlots[slotIndex];
+        if (slot && !slot.customer) {
+          setFeedback("No guest here.");
+        }
+      } else if (overCell) {
+        handleBoardDrop(sourceIndex, Number(overCell.dataset.cellIndex));
+        renderBoard();
+      }
+
+      cleanupDrag();
+    }
+
+    function cleanupDrag() {
+      clearCustomerDropHighlights();
+      document.body.classList.remove("dragging");
+      dragGhostElement.classList.remove("visible");
+      dragGhostElement.innerHTML = "";
+      gameState.drag = null;
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", endDrag);
+      document.removeEventListener("pointercancel", endDrag);
+      renderBoard();
+    }
+
+    function updateGhostPosition(x, y) {
+      dragGhostElement.style.left = `${x}px`;
+      dragGhostElement.style.top = `${y}px`;
+    }
+  </script>
+</body>
+</html>
