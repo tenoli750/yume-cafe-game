@@ -1199,12 +1199,16 @@
 
     .order-stack {
       width: 100%;
-      min-height: 56px;
+      min-height: 62px;
+      padding-top: 8px;
       display: flex;
       justify-content: center;
       align-items: flex-start;
       gap: 6px;
       contain: paint;
+      overflow: visible;
+      position: relative;
+      z-index: 2;
     }
 
     .order-token-card {
@@ -1221,6 +1225,7 @@
       contain: paint;
       backface-visibility: hidden;
       transform: translateZ(0);
+      overflow: visible;
     }
 
     .order-token-card.empty {
@@ -1312,8 +1317,8 @@
 
     .order-token-count {
       position: absolute;
-      left: -6px;
-      bottom: -4px;
+      left: -8px;
+      top: -8px;
       min-width: 20px;
       height: 20px;
       padding: 0 5px;
@@ -1325,6 +1330,7 @@
       font-size: 0.62rem;
       font-weight: 900;
       box-shadow: 0 8px 14px rgba(195, 123, 142, 0.28);
+      z-index: 4;
     }
 
     .character-stage {
@@ -2239,7 +2245,7 @@
           </div>
         </div>
 
-        <audio id="gameBgm" src="assets/audio/game-bgm.mp3" preload="auto" loop playsinline></audio>
+        <audio id="gameBgm" src="assets/audio/game-bgm.mp3" preload="none" loop playsinline></audio>
       </div>
     </div>
   </div>
@@ -2344,6 +2350,18 @@
     const GAME_LOGO_SRC = "assets/images/branding/game-logo.svg";
     const FAVICON_SRC = "assets/images/branding/favicon-circle.png";
     const GAME_BGM_SRC = "assets/audio/game-bgm.mp3";
+    const CUSTOMER_SERVE_SOUND_SRCS = [
+      "assets/audio/customer-serve-1.mp3",
+      "assets/audio/customer-serve-2.mp3",
+      "assets/audio/customer-serve-3.mp3"
+    ];
+    const CUSTOMER_LEAVE_SOUND_SRCS = [
+      "assets/audio/customer-leave-1.mp3",
+      "assets/audio/customer-leave-2.mp3"
+    ];
+    const UI_CLICK_SOUND_SRCS = [
+      "assets/audio/ui-click.mp3"
+    ];
     const CATEGORY_SWIPE_THRESHOLD = 36;
     const TOTAL_CELLS = BOARD_SIZE * BOARD_SIZE;
     const CENTER_ROW = Math.floor((BOARD_SIZE - 1) / 2);
@@ -2429,8 +2447,13 @@
       assetPreloadTotal: 0,
       assetPreloadLoaded: 0,
       assetPreloadFailed: 0,
-      assetPreloadPromise: null
+      assetPreloadPromise: null,
+      bgmPreloadStarted: false,
+      sfxPreloadStarted: false
     };
+
+    const sfxWarmCache = new Map();
+    const activeSfxElements = new Set();
 
     const viewportStageElement = document.getElementById("viewportStage");
     const startScreenElement = document.getElementById("startScreen");
@@ -2478,7 +2501,9 @@
     renderLeaderboardOverlay();
     renderRoundEndOverlay();
     void loadLeaderboard();
-    void preloadGameAssets();
+    void preloadGameAssets().finally(() => {
+      preloadBgmSeparately();
+    });
     window.addEventListener("load", startGameBgm, { once: true });
     window.addEventListener("pointerdown", startGameBgm, { once: true, passive: true });
     window.addEventListener("keydown", startGameBgm, { once: true });
@@ -2534,7 +2559,6 @@
         START_LOGO_SRC,
         GAME_LOGO_SRC,
         FAVICON_SRC,
-        GAME_BGM_SRC,
         ...CUSTOMER_AVATAR_SRCS,
         ...Object.values(GENERATOR_ASSETS),
         ...Object.values(ITEM_ASSETS.drinks),
@@ -2542,10 +2566,7 @@
         ...Object.values(ITEM_ASSETS.dessert)
       ]);
 
-      return Array.from(assetUrls).map((url) => ({
-        url,
-        type: /\.mp3($|\?)/i.test(url) ? "audio" : "image"
-      }));
+      return Array.from(assetUrls).map((url) => ({ url, type: "image" }));
     }
 
     function preloadImageAsset(url) {
@@ -2573,23 +2594,7 @@
       });
     }
 
-    function preloadAudioAsset(url) {
-      return fetch(url, { cache: "force-cache" })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`Audio preload failed (${response.status})`);
-          }
-
-          return response.arrayBuffer();
-        })
-        .then(() => {});
-    }
-
     function preloadAsset(asset) {
-      if (asset.type === "audio") {
-        return preloadAudioAsset(asset.url);
-      }
-
       return preloadImageAsset(asset.url);
     }
 
@@ -2624,6 +2629,104 @@
       });
 
       return gameState.assetPreloadPromise;
+    }
+
+    function preloadBgmSeparately() {
+      if (gameState.bgmPreloadStarted || !gameBgmElement) {
+        return;
+      }
+
+      gameState.bgmPreloadStarted = true;
+
+      const beginPreload = () => {
+        gameBgmElement.preload = "auto";
+
+        try {
+          gameBgmElement.load();
+        } catch (_) {}
+      };
+
+      if ("requestIdleCallback" in window) {
+        window.requestIdleCallback(beginPreload, { timeout: 2400 });
+        return;
+      }
+
+      window.setTimeout(beginPreload, 400);
+    }
+
+    function preloadSfxSeparately() {
+      if (gameState.sfxPreloadStarted) {
+        return;
+      }
+
+      gameState.sfxPreloadStarted = true;
+      const warmSources = [...CUSTOMER_SERVE_SOUND_SRCS, ...CUSTOMER_LEAVE_SOUND_SRCS, ...UI_CLICK_SOUND_SRCS];
+
+      const beginPreload = () => {
+        warmSources.forEach((src) => {
+          if (sfxWarmCache.has(src)) {
+            return;
+          }
+
+          const audio = new Audio(src);
+          audio.preload = "auto";
+          audio.playsInline = true;
+          audio.muted = gameState.audioMuted;
+
+          try {
+            audio.load();
+          } catch (_) {}
+
+          sfxWarmCache.set(src, audio);
+        });
+      };
+
+      if ("requestIdleCallback" in window) {
+        window.requestIdleCallback(beginPreload, { timeout: 2600 });
+        return;
+      }
+
+      window.setTimeout(beginPreload, 700);
+    }
+
+    function playRandomSfx(sourceList, volume = 0.84) {
+      if (gameState.audioMuted || !sourceList.length) {
+        return;
+      }
+
+      const src = sourceList[Math.floor(Math.random() * sourceList.length)];
+      const warmAudio = sfxWarmCache.get(src);
+      const audio = warmAudio ? warmAudio.cloneNode(true) : new Audio(src);
+      const cleanup = () => {
+        activeSfxElements.delete(audio);
+      };
+
+      audio.preload = "auto";
+      audio.playsInline = true;
+      audio.volume = volume;
+      audio.muted = gameState.audioMuted;
+      activeSfxElements.add(audio);
+      audio.addEventListener("ended", cleanup, { once: true });
+      audio.addEventListener("error", cleanup, { once: true });
+
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {
+          cleanup();
+        });
+      }
+    }
+
+    function playServeSfx() {
+      playRandomSfx(CUSTOMER_SERVE_SOUND_SRCS, 0.88);
+    }
+
+    function playLeaveSfx() {
+      playRandomSfx(CUSTOMER_LEAVE_SOUND_SRCS, 0.82);
+    }
+
+    function playUiClickSfx() {
+      playRandomSfx(UI_CLICK_SOUND_SRCS, 0.52);
     }
 
     function bindMobileGestureGuards() {
@@ -2711,6 +2814,14 @@
       if (gameBgmElement) {
         gameBgmElement.muted = gameState.audioMuted;
       }
+
+      sfxWarmCache.forEach((audio) => {
+        audio.muted = gameState.audioMuted;
+      });
+
+      activeSfxElements.forEach((audio) => {
+        audio.muted = gameState.audioMuted;
+      });
 
       try {
         if (gameState.audioMuted) {
@@ -3070,6 +3181,7 @@
         await preloadGameAssets();
       }
 
+      preloadSfxSeparately();
       closeLeaderboardOverlay();
       startScreenElement.classList.add("is-hidden");
       gameShellElement.classList.remove("is-hidden");
@@ -3531,6 +3643,7 @@
       }
 
       gameState.selectedCategory = categoryId;
+      playUiClickSfx();
       renderCategoryStrip();
       renderBoardStatus();
       renderBoard();
@@ -3607,38 +3720,80 @@
       `).join("");
     }
 
-    function renderBoard() {
+    function ensureBoardCells() {
+      if (boardElement.dataset.ready === "true") {
+        return;
+      }
+
       boardElement.innerHTML = "";
-      const selectedCategory = getSelectedCategory();
 
       for (let index = 0; index < TOTAL_CELLS; index += 1) {
         const cell = document.createElement("div");
         cell.className = "cell";
         cell.dataset.cellIndex = String(index);
-
-        if (index === CENTER_INDEX) {
-          cell.classList.add("generator-cell");
-          cell.innerHTML = `
-            <button
-              class="generator-btn"
-              type="button"
-              aria-label="Generate ${selectedCategory.label.toLowerCase()}"
-              style="--generator-color:${selectedCategory.chipBottom};"
-            >
-              <div class="generator-inner">
-                ${renderGeneratorVisual(selectedCategory.id)}
-              </div>
-            </button>
-          `;
-
-          cell.querySelector(".generator-btn").addEventListener("click", handleGeneratorClick);
-        } else if (gameState.board[index]) {
-          const item = gameState.board[index];
-          cell.innerHTML = renderItemCard(item, index);
-          cell.querySelector(".item-card").addEventListener("pointerdown", startDrag);
-        }
-
         boardElement.appendChild(cell);
+      }
+
+      boardElement.dataset.ready = "true";
+    }
+
+    function getBoardCellRenderKey(index) {
+      if (index === CENTER_INDEX) {
+        return `generator:${gameState.selectedCategory}`;
+      }
+
+      const item = gameState.board[index];
+      if (!item) {
+        return "empty";
+      }
+
+      const isDragOrigin = gameState.drag && gameState.drag.fromIndex === index ? "drag" : "idle";
+      return `${item.category}:${item.level}:${isDragOrigin}`;
+    }
+
+    function renderBoardCell(index) {
+      const cell = boardElement.children[index];
+      const renderKey = getBoardCellRenderKey(index);
+      if (!cell || cell.dataset.renderKey === renderKey) {
+        return;
+      }
+
+      cell.dataset.renderKey = renderKey;
+      cell.className = index === CENTER_INDEX ? "cell generator-cell" : "cell";
+
+      if (index === CENTER_INDEX) {
+        const selectedCategory = getSelectedCategory();
+        cell.innerHTML = `
+          <button
+            class="generator-btn"
+            type="button"
+            aria-label="Generate ${selectedCategory.label.toLowerCase()}"
+            style="--generator-color:${selectedCategory.chipBottom};"
+          >
+            <div class="generator-inner">
+              ${renderGeneratorVisual(selectedCategory.id)}
+            </div>
+          </button>
+        `;
+        cell.querySelector(".generator-btn").addEventListener("click", handleGeneratorClick);
+        return;
+      }
+
+      const item = gameState.board[index];
+      if (!item) {
+        cell.innerHTML = "";
+        return;
+      }
+
+      cell.innerHTML = renderItemCard(item, index);
+      cell.querySelector(".item-card").addEventListener("pointerdown", startDrag);
+    }
+
+    function renderBoard() {
+      ensureBoardCells();
+
+      for (let index = 0; index < TOTAL_CELLS; index += 1) {
+        renderBoardCell(index);
       }
     }
 
@@ -3742,63 +3897,111 @@
       };
     }
 
-    function renderCustomerQueue() {
-      customerQueueElement.innerHTML = gameState.customerSlots.map((slot, slotIndex) => {
-        const isSelected = slotIndex === gameState.selectedCustomerSlot;
+    function ensureCustomerSlotElements() {
+      if (customerQueueElement.dataset.ready === "true") {
+        return;
+      }
 
-        if (!slot.customer || !slot.order) {
-          return `
-            <button
-              class="queue-slot queue-slot--empty ${isSelected ? "selected" : ""}"
-              type="button"
-              data-slot-index="${slotIndex}"
-            >
-              <div class="slot-copy"></div>
-            </button>
-          `;
-        }
+      customerQueueElement.innerHTML = "";
 
-        const customer = slot.customer;
-        const order = slot.order;
-        const timerPresentation = getSlotTimerPresentation(slot);
-
-        return `
-          <button
-            class="queue-slot ${isSelected ? "selected" : ""} ${slot.entering ? "entering" : ""} ${slot.completing ? "completing" : ""}"
-            type="button"
-            data-slot-index="${slotIndex}"
-          >
-            <div class="slot-top">
-              ${renderTimerBar(
-                timerPresentation.progressPercent,
-                timerPresentation.timerClass,
-                timerPresentation.ariaLabel
-              )}
-            </div>
-
-            <div class="slot-copy">
-              <div class="order-stack">
-                ${order.requests.map((request) => renderOrderBubbleToken(request)).join("")}
-              </div>
-
-              <div class="character-stage">
-                <div class="character-shadow"></div>
-                ${renderCustomerAvatar(customer)}
-              </div>
-
-              ${slot.servedItems.length > 0
-                ? `<div class="served-strip">${slot.servedItems.map((item) => renderServedItemChip(item)).join("")}</div>`
-                : ""}
-            </div>
-          </button>
-        `;
-      }).join("");
-
-      customerQueueElement.querySelectorAll(".queue-slot").forEach((slotButton) => {
+      for (let slotIndex = 0; slotIndex < CUSTOMER_SLOT_COUNT; slotIndex += 1) {
+        const slotButton = document.createElement("button");
+        slotButton.className = "queue-slot queue-slot--empty";
+        slotButton.type = "button";
+        slotButton.dataset.slotIndex = String(slotIndex);
+        slotButton.innerHTML = `<div class="slot-copy"></div>`;
         slotButton.addEventListener("click", () => {
-          selectCustomerSlot(Number(slotButton.dataset.slotIndex));
+          selectCustomerSlot(slotIndex);
         });
-      });
+        customerQueueElement.appendChild(slotButton);
+      }
+
+      customerQueueElement.dataset.ready = "true";
+    }
+
+    function getCustomerSlotRenderKey(slot) {
+      if (!slot.customer || !slot.order) {
+        return "empty";
+      }
+
+      const requestKey = slot.order.requests
+        .map((request) => `${request.category}:${request.level}:${request.remaining}`)
+        .join("|");
+      const servedKey = slot.servedItems
+        .map((item) => `${item.category}:${item.level}`)
+        .join("|");
+
+      return [
+        slot.key || `${slot.customer.name}:${slot.customer.avatarSrc || ""}`,
+        slot.entering ? "entering" : "steady",
+        slot.completing ? "completing" : "active",
+        requestKey,
+        servedKey
+      ].join("::");
+    }
+
+    function renderCustomerSlot(slotIndex) {
+      const slot = gameState.customerSlots[slotIndex];
+      const slotButton = customerQueueElement.children[slotIndex];
+      if (!slotButton) {
+        return;
+      }
+
+      const renderKey = getCustomerSlotRenderKey(slot);
+      if (slotButton.dataset.renderKey === renderKey) {
+        slotButton.classList.toggle("queue-slot--empty", !slot.customer || !slot.order);
+        slotButton.classList.toggle("entering", Boolean(slot.entering));
+        slotButton.classList.toggle("completing", Boolean(slot.completing));
+        return;
+      }
+
+      slotButton.dataset.renderKey = renderKey;
+      slotButton.className = "queue-slot";
+      slotButton.classList.toggle("queue-slot--empty", !slot.customer || !slot.order);
+      slotButton.classList.toggle("entering", Boolean(slot.entering));
+      slotButton.classList.toggle("completing", Boolean(slot.completing));
+
+      if (!slot.customer || !slot.order) {
+        slotButton.innerHTML = `<div class="slot-copy"></div>`;
+        return;
+      }
+
+      const customer = slot.customer;
+      const order = slot.order;
+      const timerPresentation = getSlotTimerPresentation(slot);
+
+      slotButton.innerHTML = `
+        <div class="slot-top">
+          ${renderTimerBar(
+            timerPresentation.progressPercent,
+            timerPresentation.timerClass,
+            timerPresentation.ariaLabel
+          )}
+        </div>
+
+        <div class="slot-copy">
+          <div class="order-stack">
+            ${order.requests.map((request) => renderOrderBubbleToken(request)).join("")}
+          </div>
+
+          <div class="character-stage">
+            <div class="character-shadow"></div>
+            ${renderCustomerAvatar(customer)}
+          </div>
+
+          ${slot.servedItems.length > 0
+            ? `<div class="served-strip">${slot.servedItems.map((item) => renderServedItemChip(item)).join("")}</div>`
+            : ""}
+        </div>
+      `;
+    }
+
+    function renderCustomerQueue() {
+      ensureCustomerSlotElements();
+
+      for (let slotIndex = 0; slotIndex < CUSTOMER_SLOT_COUNT; slotIndex += 1) {
+        renderCustomerSlot(slotIndex);
+      }
 
       syncSelectedCustomerSlot();
     }
@@ -3934,6 +4137,7 @@
       const itemDef = getItemDef(categoryId, level);
       gameState.board[slotIndex] = createItem(categoryId, level);
 
+      playUiClickSfx();
       setFeedback(`${itemDef.name} Lv${level} appeared on the board.`);
       renderBoard();
       maybeAdvanceTutorial();
@@ -4123,6 +4327,7 @@
         return;
       }
 
+      playLeaveSfx();
       scheduleCustomerArrival(slotIndex, getNextArrivalDelayMs(), { skipRender: true, preserveServedItems: true });
     }
 
@@ -4232,6 +4437,7 @@
       }
 
       slot.completing = true;
+      playServeSfx();
 
       if (gameState.tutorial && gameState.tutorial.active) {
         renderCustomerArea();
@@ -4249,6 +4455,7 @@
 
       slot.nextTimer = setTimeout(() => {
         const completedName = slot.customer ? slot.customer.name : "The customer";
+        playLeaveSfx();
         scheduleCustomerArrival(slotIndex, getNextArrivalDelayMs(), { preserveServedItems: true });
         setFeedback(`${completedName} left happy.`);
       }, EXIT_DELAY_AFTER_COMPLETE_MS);
