@@ -3793,6 +3793,72 @@
         const cell = document.createElement("div");
         cell.className = "cell";
         cell.dataset.cellIndex = String(index);
+        if (index === CENTER_INDEX) {
+          const generatorButton = document.createElement("button");
+          generatorButton.className = "generator-btn";
+          generatorButton.type = "button";
+          generatorButton.addEventListener("click", handleGeneratorClick);
+
+          const generatorInner = document.createElement("div");
+          generatorInner.className = "generator-inner";
+
+          const generatorAsset = document.createElement("img");
+          generatorAsset.className = "generator-asset";
+          generatorAsset.alt = "";
+          generatorAsset.draggable = false;
+          generatorAsset.decoding = "sync";
+          generatorAsset.loading = "eager";
+          generatorAsset.hidden = true;
+
+          const machine = document.createElement("div");
+          machine.className = "machine";
+
+          const brewDot = document.createElement("div");
+          brewDot.className = "brew-dot";
+          machine.appendChild(brewDot);
+
+          generatorInner.appendChild(generatorAsset);
+          generatorInner.appendChild(machine);
+          generatorButton.appendChild(generatorInner);
+          cell.appendChild(generatorButton);
+        } else {
+          const itemCard = document.createElement("div");
+          itemCard.className = "item-card";
+          itemCard.dataset.index = String(index);
+          itemCard.hidden = true;
+          itemCard.addEventListener("pointerdown", startDrag);
+
+          const cupWrap = document.createElement("div");
+          cupWrap.className = "cup-wrap";
+
+          const itemArt = document.createElement("img");
+          itemArt.className = "item-art";
+          itemArt.alt = "";
+          itemArt.draggable = false;
+          itemArt.decoding = "sync";
+          itemArt.loading = "eager";
+          itemArt.hidden = true;
+
+          const cup = document.createElement("div");
+          cup.className = "cup";
+
+          const cupMark = document.createElement("div");
+          cupMark.className = "cup-mark";
+          cup.appendChild(cupMark);
+
+          const cupSpark = document.createElement("div");
+          cupSpark.className = "cup-spark";
+
+          const itemLevel = document.createElement("div");
+          itemLevel.className = "item-level level-badge";
+
+          cupWrap.appendChild(itemArt);
+          cupWrap.appendChild(cup);
+          cupWrap.appendChild(cupSpark);
+          cupWrap.appendChild(itemLevel);
+          itemCard.appendChild(cupWrap);
+          cell.appendChild(itemCard);
+        }
         boardElement.appendChild(cell);
       }
 
@@ -3825,30 +3891,74 @@
 
       if (index === CENTER_INDEX) {
         const selectedCategory = getSelectedCategory();
-        cell.innerHTML = `
-          <button
-            class="generator-btn"
-            type="button"
-            aria-label="Generate ${selectedCategory.label.toLowerCase()}"
-            style="--generator-color:${selectedCategory.chipBottom};"
-          >
-            <div class="generator-inner">
-              ${renderGeneratorVisual(selectedCategory.id)}
-            </div>
-          </button>
-        `;
-        cell.querySelector(".generator-btn").addEventListener("click", handleGeneratorClick);
+        const generatorButton = cell.querySelector(".generator-btn");
+        const generatorAsset = cell.querySelector(".generator-asset");
+        const machine = cell.querySelector(".machine");
+        const assetSrc = GENERATOR_ASSETS[selectedCategory.id];
+
+        if (generatorButton) {
+          generatorButton.setAttribute("aria-label", `Generate ${selectedCategory.label.toLowerCase()}`);
+          generatorButton.style.setProperty("--generator-color", selectedCategory.chipBottom);
+        }
+
+        if (generatorAsset && machine) {
+          if (assetSrc) {
+            if (generatorAsset.getAttribute("src") !== assetSrc) {
+              generatorAsset.setAttribute("src", assetSrc);
+            }
+            generatorAsset.hidden = false;
+            machine.hidden = true;
+          } else {
+            generatorAsset.hidden = true;
+            machine.hidden = false;
+          }
+        }
         return;
       }
 
       const item = gameState.board[index];
-      if (!item) {
-        cell.innerHTML = "";
+      const itemCard = cell.querySelector(".item-card");
+      const itemArt = cell.querySelector(".item-art");
+      const cup = cell.querySelector(".cup");
+      const cupSpark = cell.querySelector(".cup-spark");
+      const itemLevel = cell.querySelector(".item-level");
+
+      if (!itemCard || !itemArt || !cup || !cupSpark || !itemLevel) {
         return;
       }
 
-      cell.innerHTML = renderItemCard(item, index);
-      cell.querySelector(".item-card").addEventListener("pointerdown", startDrag);
+      if (!item) {
+        itemCard.hidden = true;
+        itemCard.classList.remove("drag-origin");
+        return;
+      }
+
+      const def = getItemDef(item);
+      const category = getCategoryDef(item.category);
+      const assetSrc = getItemAssetSrc(item.category, item.level);
+      const isDragOrigin = Boolean(gameState.drag && gameState.drag.fromIndex === index);
+
+      itemCard.hidden = false;
+      itemCard.classList.toggle("drag-origin", isDragOrigin);
+      itemCard.style.setProperty("--item-color", def.color);
+      itemCard.style.setProperty("--foam-color", def.foam);
+      itemCard.style.setProperty("--spark-opacity", def.spark);
+      itemCard.style.setProperty("--level-badge-color", category.levelColor);
+      itemCard.style.setProperty("--level-badge-text", category.levelTextColor);
+      itemLevel.textContent = String(item.level);
+
+      if (assetSrc) {
+        if (itemArt.getAttribute("src") !== assetSrc) {
+          itemArt.setAttribute("src", assetSrc);
+        }
+        itemArt.hidden = false;
+        cup.hidden = true;
+        cupSpark.hidden = true;
+      } else {
+        itemArt.hidden = true;
+        cup.hidden = false;
+        cupSpark.hidden = false;
+      }
     }
 
     function renderBoard() {
@@ -3995,7 +4105,6 @@
 
       return [
         slot.key || `${slot.customer.name}:${slot.customer.avatarSrc || ""}`,
-        slot.entering ? "entering" : "steady",
         slot.completing ? "completing" : "active",
         requestKey,
         servedKey
@@ -4355,7 +4464,7 @@
       slot.enterTimer = setTimeout(() => {
         if (slot.key === currentKey) {
           slot.entering = false;
-          renderCustomerArea();
+          renderCustomerSlot(slotIndex);
         }
       }, 700);
     }
@@ -4517,7 +4626,6 @@
 
       slot.nextTimer = setTimeout(() => {
         const completedName = slot.customer ? slot.customer.name : "The customer";
-        playLeaveSfx();
         scheduleCustomerArrival(slotIndex, getNextArrivalDelayMs(), { preserveServedItems: true });
         setFeedback(`${completedName} left happy.`);
       }, EXIT_DELAY_AFTER_COMPLETE_MS);
