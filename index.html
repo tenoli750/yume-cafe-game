@@ -4085,7 +4085,21 @@
         slotButton.className = "queue-slot queue-slot--empty";
         slotButton.type = "button";
         slotButton.dataset.slotIndex = String(slotIndex);
-        slotButton.innerHTML = `<div class="slot-copy"></div>`;
+        slotButton.innerHTML = `
+          <div class="slot-top">
+            <div class="timer-pill">
+              <div class="timer-fill"></div>
+            </div>
+          </div>
+          <div class="slot-copy">
+            <div class="order-stack"></div>
+            <div class="character-stage">
+              <div class="character-shadow"></div>
+              <img class="customer-avatar" alt="" draggable="false" hidden />
+            </div>
+            <div class="served-strip" hidden></div>
+          </div>
+        `;
         slotButton.addEventListener("click", () => {
           selectCustomerSlot(slotIndex);
         });
@@ -4100,18 +4114,9 @@
         return "empty";
       }
 
-      const requestKey = slot.order.requests
-        .map((request) => `${request.category}:${request.level}:${request.remaining}`)
-        .join("|");
-      const servedKey = slot.servedItems
-        .map((item) => `${item.category}:${item.level}`)
-        .join("|");
-
       return [
         slot.key || `${slot.customer.name}:${slot.customer.avatarSrc || ""}`,
-        slot.completing ? "completing" : "active",
-        requestKey,
-        servedKey
+        slot.completing ? "completing" : "active"
       ].join("::");
     }
 
@@ -4123,21 +4128,31 @@
       }
 
       const renderKey = getCustomerSlotRenderKey(slot);
-      if (slotButton.dataset.renderKey === renderKey) {
-        slotButton.classList.toggle("queue-slot--empty", !slot.customer || !slot.order);
-        slotButton.classList.toggle("entering", Boolean(slot.entering));
-        slotButton.classList.toggle("completing", Boolean(slot.completing));
-        return;
-      }
-
-      slotButton.dataset.renderKey = renderKey;
       slotButton.className = "queue-slot";
       slotButton.classList.toggle("queue-slot--empty", !slot.customer || !slot.order);
       slotButton.classList.toggle("entering", Boolean(slot.entering));
       slotButton.classList.toggle("completing", Boolean(slot.completing));
+      slotButton.dataset.renderKey = renderKey;
+
+      const timerElement = slotButton.querySelector(".timer-pill");
+      const orderStackElement = slotButton.querySelector(".order-stack");
+      const avatarElement = slotButton.querySelector(".customer-avatar");
+      const servedStripElement = slotButton.querySelector(".served-strip");
+
+      if (!timerElement || !orderStackElement || !avatarElement || !servedStripElement) {
+        return;
+      }
 
       if (!slot.customer || !slot.order) {
-        slotButton.innerHTML = `<div class="slot-copy"></div>`;
+        timerElement.hidden = true;
+        timerElement.classList.remove("success", "warning");
+        timerElement.removeAttribute("aria-label");
+        orderStackElement.innerHTML = "";
+        avatarElement.hidden = true;
+        avatarElement.removeAttribute("src");
+        avatarElement.alt = "";
+        servedStripElement.hidden = true;
+        servedStripElement.innerHTML = "";
         return;
       }
 
@@ -4145,30 +4160,31 @@
       const order = slot.order;
       const timerPresentation = getSlotTimerPresentation(slot);
 
-      slotButton.innerHTML = `
-        <div class="slot-top">
-          ${renderTimerBar(
-            timerPresentation.progressPercent,
-            timerPresentation.timerClass,
-            timerPresentation.ariaLabel
-          )}
-        </div>
+      timerElement.hidden = false;
+      timerElement.style.setProperty("--timer-progress", `${timerPresentation.progressPercent}%`);
+      timerElement.classList.toggle("success", timerPresentation.timerClass === "success");
+      timerElement.classList.toggle("warning", timerPresentation.timerClass === "warning");
+      if (timerPresentation.ariaLabel) {
+        timerElement.setAttribute("aria-label", timerPresentation.ariaLabel);
+      } else {
+        timerElement.removeAttribute("aria-label");
+      }
 
-        <div class="slot-copy">
-          <div class="order-stack">
-            ${order.requests.map((request) => renderOrderBubbleToken(request)).join("")}
-          </div>
+      orderStackElement.innerHTML = order.requests.map((request) => renderOrderBubbleToken(request)).join("");
 
-          <div class="character-stage">
-            <div class="character-shadow"></div>
-            ${renderCustomerAvatar(customer)}
-          </div>
+      avatarElement.hidden = false;
+      avatarElement.alt = customer.name;
+      if (avatarElement.getAttribute("src") !== (customer.avatarSrc || CUSTOMER_AVATAR_SRCS[0])) {
+        avatarElement.setAttribute("src", customer.avatarSrc || CUSTOMER_AVATAR_SRCS[0]);
+      }
 
-          ${slot.servedItems.length > 0
-            ? `<div class="served-strip">${slot.servedItems.map((item) => renderServedItemChip(item)).join("")}</div>`
-            : ""}
-        </div>
-      `;
+      if (slot.servedItems.length > 0) {
+        servedStripElement.hidden = false;
+        servedStripElement.innerHTML = slot.servedItems.map((item) => renderServedItemChip(item)).join("");
+      } else {
+        servedStripElement.hidden = true;
+        servedStripElement.innerHTML = "";
+      }
     }
 
     function renderCustomerQueue() {
