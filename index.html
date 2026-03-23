@@ -95,7 +95,7 @@
       justify-content: stretch;
       background:
         linear-gradient(180deg, rgba(14, 20, 12, 0.12), rgba(13, 13, 13, 0.34)),
-        url("start-screen-bg.jpg") center top / cover no-repeat;
+        url("assets/images/backgrounds/start-screen-bg.jpg") center top / cover no-repeat;
     }
 
     .start-screen.is-hidden {
@@ -600,7 +600,7 @@
       gap: 10px;
       background:
         linear-gradient(180deg, rgba(255, 251, 243, 0.24), rgba(255, 248, 240, 0.38)),
-        url("in-game-bg.jpg") center center / cover no-repeat;
+        url("assets/images/backgrounds/in-game-bg.jpg") center center / cover no-repeat;
     }
 
     .top-bar {
@@ -2091,7 +2091,7 @@
               </div>
               <img
                 class="start-logo"
-                src="start-screen-logo.svg"
+                src="assets/images/branding/start-screen-logo.svg"
                 alt="Yume Cafe"
               />
             </div>
@@ -2106,7 +2106,7 @@
             <div class="brand">
               <img
                 class="brand-badge"
-                src="prompt_design_a_playful_casual_game_logo_using_the_019d1b61-7326-7621-ba7a-1cc7c84fb963.svg"
+                src="assets/images/branding/game-logo.svg"
                 alt="Merge Cafe logo"
               />
             </div>
@@ -2193,7 +2193,7 @@
           </div>
         </div>
 
-        <audio id="gameBgm" src="game-bgm.mp3" preload="auto" loop playsinline></audio>
+        <audio id="gameBgm" src="assets/audio/game-bgm.mp3" preload="auto" loop playsinline></audio>
       </div>
     </div>
   </div>
@@ -2297,39 +2297,39 @@
     const CENTER_COLUMN = Math.floor((BOARD_SIZE - 1) / 2);
     const CENTER_INDEX = (CENTER_ROW * BOARD_SIZE) + CENTER_COLUMN;
     const CUSTOMER_AVATAR_SRCS = [
-      "telegram-cloud-photo-size-5-6199458874721505042-x-removebg-preview.png",
-      "customer-avatar-2.png",
-      "customer-avatar-3.png",
-      "customer-avatar-4.png"
+      "assets/images/customers/customer-avatar-1.png",
+      "assets/images/customers/customer-avatar-2.png",
+      "assets/images/customers/customer-avatar-3.png",
+      "assets/images/customers/customer-avatar-4.png"
     ];
     // Asset maps keep art wiring separate from the gameplay data.
     const ITEM_ASSETS = {
       drinks: {
-        1: "drink1.png",
-        2: "drink2.png",
-        3: "drink3.png",
-        4: "drink4.png",
-        5: "drink5.png"
+        1: "assets/images/items/drinks/drink1.png",
+        2: "assets/images/items/drinks/drink2.png",
+        3: "assets/images/items/drinks/drink3.png",
+        4: "assets/images/items/drinks/drink4.png",
+        5: "assets/images/items/drinks/drink5.png"
       },
       bakery: {
-        1: "bread1.png",
-        2: "bread2.png",
-        3: "bread3.png",
-        4: "bread4.png",
-        5: "bread5.png"
+        1: "assets/images/items/bakery/bread1.png",
+        2: "assets/images/items/bakery/bread2.png",
+        3: "assets/images/items/bakery/bread3.png",
+        4: "assets/images/items/bakery/bread4.png",
+        5: "assets/images/items/bakery/bread5.png"
       },
       dessert: {
-        1: "des1.png",
-        2: "des2.png",
-        3: "des3.png",
-        4: "des4.png",
-        5: "des5.png"
+        1: "assets/images/items/dessert/des1.png",
+        2: "assets/images/items/dessert/des2.png",
+        3: "assets/images/items/dessert/des3.png",
+        4: "assets/images/items/dessert/des4.png",
+        5: "assets/images/items/dessert/des5.png"
       }
     };
     const GENERATOR_ASSETS = {
-      drinks: "Espressomachine.png",
-      bakery: "bakeryoven.png",
-      dessert: "dessertfridge.png"
+      drinks: "assets/images/generators/espresso-machine.png",
+      bakery: "assets/images/generators/bakery-oven.png",
+      dessert: "assets/images/generators/dessert-fridge.png"
     };
     const CUSTOMER_SLOT_COUNT = 3;
     const TIMER_TICK_MS = 1000;
