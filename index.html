@@ -1037,7 +1037,7 @@
       align-items: stretch;
       height: auto;
       gap: 12px;
-      overflow: hidden;
+      overflow: visible;
       padding: 0;
     }
 
@@ -1205,7 +1205,6 @@
       justify-content: center;
       align-items: flex-start;
       gap: 6px;
-      contain: paint;
       overflow: visible;
       position: relative;
       z-index: 2;
@@ -1222,7 +1221,6 @@
       background: rgba(255, 255, 255, 0.92);
       border: 1px solid rgba(255, 255, 255, 0.9);
       box-shadow: 0 10px 18px rgba(145, 110, 96, 0.12);
-      contain: paint;
       backface-visibility: hidden;
       transform: translateZ(0);
       overflow: visible;
@@ -2362,6 +2360,7 @@
     const UI_CLICK_SOUND_SRCS = [
       "assets/audio/ui-click.mp3"
     ];
+    const SFX_POOL_SIZE = 3;
     const CATEGORY_SWIPE_THRESHOLD = 36;
     const TOTAL_CELLS = BOARD_SIZE * BOARD_SIZE;
     const CENTER_ROW = Math.floor((BOARD_SIZE - 1) / 2);
@@ -2449,10 +2448,12 @@
       assetPreloadFailed: 0,
       assetPreloadPromise: null,
       bgmPreloadStarted: false,
-      sfxPreloadStarted: false
+      sfxPreloadStarted: false,
+      sfxPrimed: false
     };
 
-    const sfxWarmCache = new Map();
+    const sfxPoolMap = new Map();
+    const sfxPoolCursorMap = new Map();
     const activeSfxElements = new Set();
 
     const viewportStageElement = document.getElementById("viewportStage");
@@ -2664,20 +2665,32 @@
 
       const beginPreload = () => {
         warmSources.forEach((src) => {
-          if (sfxWarmCache.has(src)) {
+          if (sfxPoolMap.has(src)) {
             return;
           }
 
-          const audio = new Audio(src);
-          audio.preload = "auto";
-          audio.playsInline = true;
-          audio.muted = gameState.audioMuted;
+          const pool = Array.from({ length: SFX_POOL_SIZE }, () => {
+            const audio = new Audio(src);
+            audio.preload = "auto";
+            audio.playsInline = true;
+            audio.muted = gameState.audioMuted;
 
-          try {
-            audio.load();
-          } catch (_) {}
+            try {
+              audio.load();
+            } catch (_) {}
 
-          sfxWarmCache.set(src, audio);
+            audio.addEventListener("ended", () => {
+              activeSfxElements.delete(audio);
+            });
+            audio.addEventListener("error", () => {
+              activeSfxElements.delete(audio);
+            });
+
+            return audio;
+          });
+
+          sfxPoolMap.set(src, pool);
+          sfxPoolCursorMap.set(src, 0);
         });
       };
 
@@ -2689,30 +2702,76 @@
       window.setTimeout(beginPreload, 700);
     }
 
+    function primeSfxPlayback() {
+      if (gameState.sfxPrimed) {
+        return;
+      }
+
+      gameState.sfxPrimed = true;
+
+      sfxPoolMap.forEach((pool) => {
+        pool.forEach((audio) => {
+          const restoreMuted = gameState.audioMuted;
+          audio.muted = true;
+          audio.volume = 0;
+
+          const playPromise = audio.play();
+          if (playPromise && typeof playPromise.then === "function") {
+            playPromise
+              .then(() => {
+                audio.pause();
+                audio.currentTime = 0;
+              })
+              .catch(() => {})
+              .finally(() => {
+                audio.volume = 1;
+                audio.muted = restoreMuted;
+              });
+            return;
+          }
+
+          audio.volume = 1;
+          audio.muted = restoreMuted;
+        });
+      });
+    }
+
     function playRandomSfx(sourceList, volume = 0.84) {
       if (gameState.audioMuted || !sourceList.length) {
         return;
       }
 
       const src = sourceList[Math.floor(Math.random() * sourceList.length)];
-      const warmAudio = sfxWarmCache.get(src);
-      const audio = warmAudio ? warmAudio.cloneNode(true) : new Audio(src);
-      const cleanup = () => {
-        activeSfxElements.delete(audio);
-      };
+      const pool = sfxPoolMap.get(src);
+      let audio = pool
+        ? pool.find((entry) => entry.paused || entry.ended)
+        : null;
 
-      audio.preload = "auto";
-      audio.playsInline = true;
+      if (!audio && pool && pool.length) {
+        const cursor = sfxPoolCursorMap.get(src) || 0;
+        audio = pool[cursor % pool.length];
+        sfxPoolCursorMap.set(src, (cursor + 1) % pool.length);
+      }
+
+      if (!audio) {
+        audio = new Audio(src);
+        audio.preload = "auto";
+        audio.playsInline = true;
+      }
+
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+      } catch (_) {}
+
       audio.volume = volume;
       audio.muted = gameState.audioMuted;
       activeSfxElements.add(audio);
-      audio.addEventListener("ended", cleanup, { once: true });
-      audio.addEventListener("error", cleanup, { once: true });
 
       const playPromise = audio.play();
       if (playPromise && typeof playPromise.catch === "function") {
         playPromise.catch(() => {
-          cleanup();
+          activeSfxElements.delete(audio);
         });
       }
     }
@@ -2815,8 +2874,10 @@
         gameBgmElement.muted = gameState.audioMuted;
       }
 
-      sfxWarmCache.forEach((audio) => {
-        audio.muted = gameState.audioMuted;
+      sfxPoolMap.forEach((pool) => {
+        pool.forEach((audio) => {
+          audio.muted = gameState.audioMuted;
+        });
       });
 
       activeSfxElements.forEach((audio) => {
@@ -3182,6 +3243,7 @@
       }
 
       preloadSfxSeparately();
+      primeSfxPlayback();
       closeLeaderboardOverlay();
       startScreenElement.classList.add("is-hidden");
       gameShellElement.classList.remove("is-hidden");
