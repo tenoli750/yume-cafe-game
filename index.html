@@ -4097,7 +4097,6 @@
               <div class="character-shadow"></div>
               <img class="customer-avatar" alt="" draggable="false" hidden />
             </div>
-            <div class="served-strip" hidden></div>
           </div>
         `;
         slotButton.addEventListener("click", () => {
@@ -4137,9 +4136,8 @@
       const timerElement = slotButton.querySelector(".timer-pill");
       const orderStackElement = slotButton.querySelector(".order-stack");
       const avatarElement = slotButton.querySelector(".customer-avatar");
-      const servedStripElement = slotButton.querySelector(".served-strip");
 
-      if (!timerElement || !orderStackElement || !avatarElement || !servedStripElement) {
+      if (!timerElement || !orderStackElement || !avatarElement) {
         return;
       }
 
@@ -4151,8 +4149,6 @@
         avatarElement.hidden = true;
         avatarElement.removeAttribute("src");
         avatarElement.alt = "";
-        servedStripElement.hidden = true;
-        servedStripElement.innerHTML = "";
         return;
       }
 
@@ -4176,14 +4172,6 @@
       avatarElement.alt = customer.name;
       if (avatarElement.getAttribute("src") !== (customer.avatarSrc || CUSTOMER_AVATAR_SRCS[0])) {
         avatarElement.setAttribute("src", customer.avatarSrc || CUSTOMER_AVATAR_SRCS[0]);
-      }
-
-      if (slot.servedItems.length > 0) {
-        servedStripElement.hidden = false;
-        servedStripElement.innerHTML = slot.servedItems.map((item) => renderServedItemChip(item)).join("");
-      } else {
-        servedStripElement.hidden = true;
-        servedStripElement.innerHTML = "";
       }
     }
 
