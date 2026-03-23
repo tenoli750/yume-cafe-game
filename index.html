@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Merge Cafe</title>
   <link rel="icon" type="image/png" href="assets/images/branding/favicon-circle.png" />
   <style>
@@ -42,6 +42,8 @@
     body {
       width: 100%;
       height: 100%;
+      overscroll-behavior: none;
+      touch-action: none;
     }
 
     body {
@@ -50,6 +52,7 @@
       color: var(--ink);
       background: #000;
       overflow: hidden;
+      -webkit-touch-callout: none;
     }
 
     body.dragging {
@@ -69,12 +72,14 @@
       place-items: center;
       overflow: hidden;
       padding: calc(var(--viewport-margin) * 1px / 2);
+      touch-action: none;
     }
 
     .viewport-frame {
       position: relative;
       width: var(--viewport-scaled-width);
       height: var(--viewport-scaled-height);
+      touch-action: none;
     }
 
     .viewport-scaler {
@@ -85,6 +90,7 @@
       height: calc(var(--viewport-height) * 1px);
       transform: translate(-50%, -50%) scale(var(--viewport-scale));
       transform-origin: center center;
+      touch-action: none;
     }
 
     .start-screen {
@@ -94,6 +100,7 @@
       display: flex;
       align-items: stretch;
       justify-content: stretch;
+      touch-action: none;
       background:
         linear-gradient(180deg, rgba(14, 20, 12, 0.12), rgba(13, 13, 13, 0.34)),
         url("assets/images/backgrounds/start-screen-bg.jpg") center top / cover no-repeat;
@@ -167,6 +174,15 @@
       cursor: pointer;
     }
 
+    .start-button:disabled {
+      cursor: default;
+      opacity: 0.8;
+      filter: saturate(0.9);
+      box-shadow:
+        inset 0 2px 0 rgba(255, 245, 224, 0.45),
+        0 10px 18px rgba(135, 79, 36, 0.16);
+    }
+
     .start-button:focus-visible {
       outline: none;
     }
@@ -177,6 +193,16 @@
       flex-direction: column;
       align-items: center;
       gap: 12px;
+    }
+
+    .start-loading-text {
+      min-height: 18px;
+      margin: 0;
+      color: rgba(255, 249, 237, 0.92);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-shadow: 0 2px 8px rgba(28, 18, 12, 0.24);
     }
 
     .player-id-input {
@@ -599,6 +625,7 @@
       flex-direction: column;
       justify-content: flex-start;
       gap: 10px;
+      touch-action: none;
       background:
         linear-gradient(180deg, rgba(255, 251, 243, 0.24), rgba(255, 248, 240, 0.38)),
         url("assets/images/backgrounds/in-game-bg.jpg") center center / cover no-repeat;
@@ -829,7 +856,7 @@
       display: grid;
       gap: 10px;
       justify-items: stretch;
-      touch-action: pan-y;
+      touch-action: none;
     }
 
     .board-status {
@@ -924,6 +951,7 @@
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 10px;
+      contain: layout paint;
     }
 
     .category-chip {
@@ -945,6 +973,9 @@
       color: var(--ink);
       text-align: center;
       cursor: pointer;
+      contain: paint;
+      backface-visibility: hidden;
+      transform: translateZ(0);
     }
 
     .category-chip.active {
@@ -968,6 +999,9 @@
       background: rgba(255, 255, 255, 0.68);
       box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45);
       overflow: hidden;
+      contain: paint;
+      backface-visibility: hidden;
+      transform: translateZ(0);
     }
 
     .category-chip.active .category-icon {
@@ -1071,6 +1105,8 @@
       object-fit: contain;
       object-position: bottom center;
       filter: drop-shadow(0 8px 16px rgba(121, 99, 122, 0.16));
+      backface-visibility: hidden;
+      transform: translateZ(0);
     }
 
     .slot-copy {
@@ -1081,11 +1117,13 @@
       align-items: center;
       justify-content: flex-start;
       gap: 2px;
+      contain: paint;
     }
 
     .slot-top {
       width: 100%;
       min-height: 8px;
+      contain: layout paint;
     }
 
     .slot-badges {
@@ -1166,6 +1204,7 @@
       justify-content: center;
       align-items: flex-start;
       gap: 6px;
+      contain: paint;
     }
 
     .order-token-card {
@@ -1179,6 +1218,9 @@
       background: rgba(255, 255, 255, 0.92);
       border: 1px solid rgba(255, 255, 255, 0.9);
       box-shadow: 0 10px 18px rgba(145, 110, 96, 0.12);
+      contain: paint;
+      backface-visibility: hidden;
+      transform: translateZ(0);
     }
 
     .order-token-card.empty {
@@ -1201,6 +1243,8 @@
       object-fit: contain;
       display: block;
       filter: drop-shadow(0 4px 8px rgba(130, 96, 78, 0.14));
+      backface-visibility: hidden;
+      transform: translateZ(0);
     }
 
     .order-token-card.empty .order-token-visual {
@@ -2097,7 +2141,8 @@
               />
             </div>
             <div class="start-screen-actions">
-              <button id="startGameButton" class="start-button" type="button">Start Game</button>
+              <button id="startGameButton" class="start-button" type="button" disabled>Loading Cafe...</button>
+              <p id="startLoadingText" class="start-loading-text" aria-live="polite">Loading 0%</p>
             </div>
           </div>
         </div>
@@ -2292,6 +2337,13 @@
     const VIEWPORT_WIDTH = 540;
     const VIEWPORT_HEIGHT = 1080;
     const VIEWPORT_MARGIN = 24;
+    const DOUBLE_TAP_GUARD_MS = 320;
+    const START_SCREEN_BG_SRC = "assets/images/backgrounds/start-screen-bg.jpg";
+    const IN_GAME_BG_SRC = "assets/images/backgrounds/in-game-bg.jpg";
+    const START_LOGO_SRC = "assets/images/branding/start-screen-logo.svg";
+    const GAME_LOGO_SRC = "assets/images/branding/game-logo.svg";
+    const FAVICON_SRC = "assets/images/branding/favicon-circle.png";
+    const GAME_BGM_SRC = "assets/audio/game-bgm.mp3";
     const CATEGORY_SWIPE_THRESHOLD = 36;
     const TOTAL_CELLS = BOARD_SIZE * BOARD_SIZE;
     const CENTER_ROW = Math.floor((BOARD_SIZE - 1) / 2);
@@ -2371,11 +2423,19 @@
       leaderboardLoading: false,
       leaderboardSubmitting: false,
       leaderboardStatusText: "",
-      timerLoop: null
+      timerLoop: null,
+      assetsReady: false,
+      assetsLoading: true,
+      assetPreloadTotal: 0,
+      assetPreloadLoaded: 0,
+      assetPreloadFailed: 0,
+      assetPreloadPromise: null
     };
 
+    const viewportStageElement = document.getElementById("viewportStage");
     const startScreenElement = document.getElementById("startScreen");
     const startGameButtonElement = document.getElementById("startGameButton");
+    const startLoadingTextElement = document.getElementById("startLoadingText");
     const gameShellElement = document.getElementById("gameShell");
     const leaderboardButtonElement = document.getElementById("leaderboardButton");
     const startMuteButtonElement = document.getElementById("startMuteButton");
@@ -2407,15 +2467,18 @@
     const dragGhostElement = document.getElementById("dragGhost");
 
     updateViewportScale();
+    bindMobileGestureGuards();
     window.addEventListener("resize", updateViewportScale);
     hydratePlayerId();
     hydrateAudioMuted();
+    renderStartPreloadState();
     syncPlayerIdInputs();
     syncMuteButtons();
     renderLeaderboardPanels();
     renderLeaderboardOverlay();
     renderRoundEndOverlay();
     void loadLeaderboard();
+    void preloadGameAssets();
     window.addEventListener("load", startGameBgm, { once: true });
     window.addEventListener("pointerdown", startGameBgm, { once: true, passive: true });
     window.addEventListener("keydown", startGameBgm, { once: true });
@@ -2436,6 +2499,161 @@
       document.documentElement.style.setProperty("--viewport-scale", scale.toFixed(4));
       document.documentElement.style.setProperty("--viewport-scaled-width", `${VIEWPORT_WIDTH * scale}px`);
       document.documentElement.style.setProperty("--viewport-scaled-height", `${VIEWPORT_HEIGHT * scale}px`);
+    }
+
+    function renderStartPreloadState() {
+      if (!startGameButtonElement || !startLoadingTextElement) {
+        return;
+      }
+
+      const { assetsReady, assetsLoading, assetPreloadLoaded, assetPreloadTotal, assetPreloadFailed } = gameState;
+      const progressText = assetPreloadTotal
+        ? `${assetPreloadLoaded}/${assetPreloadTotal}`
+        : "0/0";
+
+      if (assetsReady) {
+        startGameButtonElement.disabled = false;
+        startGameButtonElement.textContent = "Start Game";
+        startLoadingTextElement.textContent = assetPreloadFailed
+          ? `Ready with ${assetPreloadFailed} skipped`
+          : "Ready";
+        return;
+      }
+
+      startGameButtonElement.disabled = true;
+      startGameButtonElement.textContent = assetsLoading ? "Loading Cafe..." : "Start Game";
+      startLoadingTextElement.textContent = assetsLoading
+        ? `Loading ${progressText}`
+        : "Loading assets...";
+    }
+
+    function getGameAssetManifest() {
+      const assetUrls = new Set([
+        START_SCREEN_BG_SRC,
+        IN_GAME_BG_SRC,
+        START_LOGO_SRC,
+        GAME_LOGO_SRC,
+        FAVICON_SRC,
+        GAME_BGM_SRC,
+        ...CUSTOMER_AVATAR_SRCS,
+        ...Object.values(GENERATOR_ASSETS),
+        ...Object.values(ITEM_ASSETS.drinks),
+        ...Object.values(ITEM_ASSETS.bakery),
+        ...Object.values(ITEM_ASSETS.dessert)
+      ]);
+
+      return Array.from(assetUrls).map((url) => ({
+        url,
+        type: /\.mp3($|\?)/i.test(url) ? "audio" : "image"
+      }));
+    }
+
+    function preloadImageAsset(url) {
+      return new Promise((resolve) => {
+        const image = new Image();
+
+        const completeLoad = () => {
+          if (typeof image.decode === "function") {
+            image.decode().catch(() => {}).finally(resolve);
+            return;
+          }
+
+          resolve();
+        };
+
+        image.onload = completeLoad;
+        image.onerror = resolve;
+        image.decoding = "async";
+        image.loading = "eager";
+        image.src = url;
+
+        if (image.complete && image.naturalWidth > 0) {
+          completeLoad();
+        }
+      });
+    }
+
+    function preloadAudioAsset(url) {
+      return fetch(url, { cache: "force-cache" })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Audio preload failed (${response.status})`);
+          }
+
+          return response.arrayBuffer();
+        })
+        .then(() => {});
+    }
+
+    function preloadAsset(asset) {
+      if (asset.type === "audio") {
+        return preloadAudioAsset(asset.url);
+      }
+
+      return preloadImageAsset(asset.url);
+    }
+
+    async function preloadGameAssets() {
+      if (gameState.assetPreloadPromise) {
+        return gameState.assetPreloadPromise;
+      }
+
+      const manifest = getGameAssetManifest();
+      gameState.assetsLoading = true;
+      gameState.assetsReady = false;
+      gameState.assetPreloadTotal = manifest.length;
+      gameState.assetPreloadLoaded = 0;
+      gameState.assetPreloadFailed = 0;
+      renderStartPreloadState();
+
+      gameState.assetPreloadPromise = Promise.allSettled(
+        manifest.map((asset) =>
+          preloadAsset(asset)
+            .catch(() => {
+              gameState.assetPreloadFailed += 1;
+            })
+            .finally(() => {
+              gameState.assetPreloadLoaded += 1;
+              renderStartPreloadState();
+            })
+        )
+      ).then(() => {
+        gameState.assetsLoading = false;
+        gameState.assetsReady = true;
+        renderStartPreloadState();
+      });
+
+      return gameState.assetPreloadPromise;
+    }
+
+    function bindMobileGestureGuards() {
+      const gestureSurface = viewportStageElement || document.body;
+      let lastTouchEndAt = 0;
+
+      const cancelGesture = (event) => {
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+      };
+
+      gestureSurface.addEventListener("dblclick", cancelGesture);
+      gestureSurface.addEventListener("gesturestart", cancelGesture, { passive: false });
+      gestureSurface.addEventListener("gesturechange", cancelGesture, { passive: false });
+      gestureSurface.addEventListener("gestureend", cancelGesture, { passive: false });
+      gestureSurface.addEventListener("touchstart", (event) => {
+        if (event.touches.length > 1 && event.cancelable) {
+          event.preventDefault();
+        }
+      }, { passive: false });
+      gestureSurface.addEventListener("touchend", (event) => {
+        const now = Date.now();
+
+        if (now - lastTouchEndAt < DOUBLE_TAP_GUARD_MS && event.cancelable) {
+          event.preventDefault();
+        }
+
+        lastTouchEndAt = now;
+      }, { passive: false });
     }
 
     function startGameBgm() {
@@ -2846,7 +3064,12 @@
       bindCategorySwipe();
     }
 
-    function startGame() {
+    async function startGame() {
+      if (!gameState.assetsReady) {
+        renderStartPreloadState();
+        await preloadGameAssets();
+      }
+
       closeLeaderboardOverlay();
       startScreenElement.classList.add("is-hidden");
       gameShellElement.classList.remove("is-hidden");
@@ -3242,23 +3465,31 @@
         return;
       }
 
-      categoryStripElement.innerHTML = CATEGORY_DEFS.map((category) => `
-        <button
-          class="category-chip ${gameState.selectedCategory === category.id ? "active" : ""}"
-          type="button"
-          data-category="${category.id}"
-        >
-          <div class="category-icon">
-            ${renderGeneratorVisual(category.id)}
-          </div>
-          <div class="category-label">${category.label}</div>
-        </button>
-      `).join("");
+      if (!categoryStripElement.dataset.ready) {
+        categoryStripElement.innerHTML = CATEGORY_DEFS.map((category) => `
+          <button
+            class="category-chip"
+            type="button"
+            data-category="${category.id}"
+          >
+            <div class="category-icon">
+              ${renderGeneratorVisual(category.id)}
+            </div>
+            <div class="category-label">${category.label}</div>
+          </button>
+        `).join("");
+
+        categoryStripElement.querySelectorAll(".category-chip").forEach((button) => {
+          button.addEventListener("click", () => {
+            selectCategory(button.dataset.category);
+          });
+        });
+
+        categoryStripElement.dataset.ready = "true";
+      }
 
       categoryStripElement.querySelectorAll(".category-chip").forEach((button) => {
-        button.addEventListener("click", () => {
-          selectCategory(button.dataset.category);
-        });
+        button.classList.toggle("active", button.dataset.category === gameState.selectedCategory);
       });
     }
 
@@ -3478,6 +3709,39 @@
       renderCustomerQueue();
     }
 
+    function syncSelectedCustomerSlot() {
+      if (!customerQueueElement) {
+        return;
+      }
+
+      customerQueueElement.querySelectorAll(".queue-slot[data-slot-index]").forEach((slotButton) => {
+        slotButton.classList.toggle("selected", Number(slotButton.dataset.slotIndex) === gameState.selectedCustomerSlot);
+      });
+    }
+
+    function getSlotTimerPresentation(slot, now = Date.now()) {
+      if (!slot.customer || !slot.order) {
+        return null;
+      }
+
+      const remainingLeaveMs = slot.leaveAt ? Math.max(0, slot.leaveAt - now) : 0;
+      const leaveCountdown = slot.leaveAt ? formatCountdown(remainingLeaveMs) : "00:00";
+      const timerClass = slot.completing
+        ? "success"
+        : (remainingLeaveMs <= 10000 ? "warning" : "");
+      const progressPercent = slot.completing
+        ? 100
+        : getTimerProgressPercent(remainingLeaveMs, slot.stayDurationMs || remainingLeaveMs || 1);
+
+      return {
+        remainingLeaveMs,
+        leaveCountdown,
+        timerClass,
+        progressPercent,
+        ariaLabel: slot.completing ? "Order complete" : leaveCountdown
+      };
+    }
+
     function renderCustomerQueue() {
       customerQueueElement.innerHTML = gameState.customerSlots.map((slot, slotIndex) => {
         const isSelected = slotIndex === gameState.selectedCustomerSlot;
@@ -3496,11 +3760,7 @@
 
         const customer = slot.customer;
         const order = slot.order;
-        const remainingLeaveMs = slot.leaveAt ? Math.max(0, slot.leaveAt - Date.now()) : 0;
-        const leaveCountdown = slot.leaveAt ? formatCountdown(remainingLeaveMs) : "00:00";
-        const timerClass = slot.completing
-          ? "success"
-          : (remainingLeaveMs <= 10000 ? "warning" : "");
+        const timerPresentation = getSlotTimerPresentation(slot);
 
         return `
           <button
@@ -3510,9 +3770,9 @@
           >
             <div class="slot-top">
               ${renderTimerBar(
-                slot.completing ? 100 : getTimerProgressPercent(remainingLeaveMs, slot.stayDurationMs || remainingLeaveMs || 1),
-                timerClass,
-                slot.completing ? "Order complete" : leaveCountdown
+                timerPresentation.progressPercent,
+                timerPresentation.timerClass,
+                timerPresentation.ariaLabel
               )}
             </div>
 
@@ -3539,6 +3799,33 @@
           selectCustomerSlot(Number(slotButton.dataset.slotIndex));
         });
       });
+
+      syncSelectedCustomerSlot();
+    }
+
+    function updateCustomerTimerBars(now = Date.now()) {
+      for (let slotIndex = 0; slotIndex < gameState.customerSlots.length; slotIndex += 1) {
+        const slot = gameState.customerSlots[slotIndex];
+        if (!slot.customer || !slot.order) {
+          continue;
+        }
+
+        const slotButton = customerQueueElement.querySelector(`.queue-slot[data-slot-index="${slotIndex}"]`);
+        const timerElement = slotButton ? slotButton.querySelector(".timer-pill") : null;
+        if (!timerElement) {
+          continue;
+        }
+
+        const timerPresentation = getSlotTimerPresentation(slot, now);
+        timerElement.style.setProperty("--timer-progress", `${timerPresentation.progressPercent}%`);
+        timerElement.classList.toggle("success", timerPresentation.timerClass === "success");
+        timerElement.classList.toggle("warning", timerPresentation.timerClass === "warning");
+        if (timerPresentation.ariaLabel) {
+          timerElement.setAttribute("aria-label", timerPresentation.ariaLabel);
+        } else {
+          timerElement.removeAttribute("aria-label");
+        }
+      }
     }
 
     function renderServedItemChip(item) {
@@ -3578,7 +3865,7 @@
 
     function selectCustomerSlot(slotIndex) {
       gameState.selectedCustomerSlot = slotIndex;
-      renderCustomerArea();
+      syncSelectedCustomerSlot();
       const slot = getCustomerSlot(slotIndex);
       if (slot.customer) {
         setFeedback(`Serving ${slot.customer.name}.`);
@@ -3842,6 +4129,7 @@
     function updateCustomerTimers() {
       const now = Date.now();
       let latestFeedback = null;
+      let requiresRender = false;
 
       updateRoundTimer(now);
       if (gameState.roundComplete) {
@@ -3854,6 +4142,7 @@
         if (!slot.customer && slot.arrivalAt && now >= slot.arrivalAt) {
           spawnCustomerIntoSlot(slotIndex, { skipRender: true });
           latestFeedback = `${gameState.customerSlots[slotIndex].customer.name} arrived.`;
+          requiresRender = true;
           continue;
         }
 
@@ -3861,10 +4150,15 @@
           const leavingName = slot.customer.name;
           handleCustomerDeparture(slotIndex);
           latestFeedback = `${leavingName} left.`;
+          requiresRender = true;
         }
       }
 
-      renderCustomerArea();
+      if (requiresRender) {
+        renderCustomerArea();
+      } else {
+        updateCustomerTimerBars(now);
+      }
 
       if (latestFeedback) {
         setFeedback(latestFeedback);
